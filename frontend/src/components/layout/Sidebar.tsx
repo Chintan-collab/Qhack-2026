@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FolderOpen, MessageSquare } from "lucide-react";
+import { FolderOpen, MessageSquare, LayoutDashboard } from "lucide-react";
 import clsx from "clsx";
 import { useChatStore } from "../../store/chatStore";
 
@@ -17,16 +17,28 @@ export default function Sidebar() {
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         <SidebarLink
+          to="/"
+          icon={<LayoutDashboard className="w-4 h-4" />}
+          label="Dashboard"
+          active={location.pathname === "/"}
+        />
+        <SidebarLink
+          to="/form"
+          icon={<FolderOpen className="w-4 h-4" />}
+          label="Leads"
+          active={location.pathname === "/form"}
+        />
+        <SidebarLink
           to="/projects"
           icon={<FolderOpen className="w-4 h-4" />}
           label="Projects"
           active={location.pathname.startsWith("/projects")}
         />
         <SidebarLink
-          to="/"
+          to="/chat"
           icon={<MessageSquare className="w-4 h-4" />}
           label="Quick Chat"
-          active={location.pathname === "/"}
+          active={location.pathname === "/chat"}
         />
 
         {conversations.length > 0 && (
