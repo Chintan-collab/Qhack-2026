@@ -1,268 +1,260 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useState, useCallback } from "react";
-import { ArrowLeft, MessageCircle, X, Send, Mic, MicOff, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  MapPin,
+  Users,
+  Zap,
+  Wallet,
+  Target,
+  MessageCircle,
+  Send,
+  Home,
+  Calendar,
+  Flame,
+  FileText,
+} from "lucide-react";
 
-const leads = {
-  1: {
-    name: "Lukas Schneider",
-    postcode: "68169",
-    area: "Mannheim",
-    household: 3,
-    product_interest: "solar_battery",
-    budget_band: "medium",
-    annual_consumption_kwh: 4200,
-    customer_goal: "Reduce monthly bills and improve energy independence",
+const leads = [
+  {
+    id: 1,
+    name: "Markus Weber",
+    postal_code: "74238",
+    city: "Krautheim",
+    product_interest: "Heat pump",
+    household_size: 4,
+    house_type: "Detached",
+    build_year: 1985,
+    roof_orientation: "South",
+    electricity_kwh_year: 4500,
+    heating_type: "Gas",
+    monthly_energy_bill_eur: 180,
+    existing_assets: "None",
+    financial_profile: "Mid-income, open to financing",
+    notes: "Concerned about rising gas prices",
   },
-  2: {
+  {
+    id: 2,
     name: "Emma Fischer",
-    postcode: "69115",
     area: "Heidelberg",
-    household: 2,
-    product_interest: "heat_pump",
-    budget_band: "high",
+    postcode: "69115",
+    household_size: 2,
     annual_consumption_kwh: 2800,
+    budget_band: "high",
+    product_interest: "heat_pump",
     customer_goal: "Upgrade heating system for long-term savings",
   },
-  3: {
+  {
+    id: 3,
     name: "Noah Weber",
-    postcode: "70173",
     area: "Stuttgart",
-    household: 4,
-    product_interest: "wallbox",
-    budget_band: "medium",
+    postcode: "70173",
+    household_size: 4,
     annual_consumption_kwh: 5100,
+    budget_band: "medium",
+    product_interest: "wallbox",
     customer_goal: "Prepare home charging setup for EV usage",
   },
-};
+];
 
-export default function LeadDetailPage() {
-  const { id } = useParams();
+export default function LeadPage() {
   const navigate = useNavigate();
-  const lead = leads[id];
+  const { id } = useParams();
+  const [message, setMessage] = useState("");
 
-  const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState(null);
+  const lead = useMemo(() => {
+    return leads.find((item) => item.id === Number(id));
+  }, [id]);
 
-  const sendMessage = useCallback(
-    async (text) => {
-      if (!text.trim() || loading) return;
+  const formatProduct = (value) => {
+    if (!value) return "—";
 
-      const userMsg = { role: "user", content: text };
-      setMessages((prev) => [...prev, userMsg]);
-      setInput("");
-      setLoading(true);
-
-      try {
-        // First message: include lead context so the agent knows about this customer
-        let message = text;
-        if (messages.length === 0) {
-          message =
-            `[Lead context: ${lead.name}, ${lead.area}, ` +
-            `${lead.product_interest}, household ${lead.household}, ` +
-            `${lead.annual_consumption_kwh}kWh, budget ${lead.budget_band}, ` +
-            `goal: ${lead.customer_goal}]\n\n${text}`;
-        }
-
-        const res = await fetch("/api/v1/chat/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            conversation_id: conversationId,
-            message,
-          }),
-        });
-        const data = await res.json();
-
-        if (!conversationId) {
-          setConversationId(data.conversation_id);
-        }
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: data.message,
-            agent: data.metadata?.agent_name,
-          },
-        ]);
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: "Sorry, something went wrong." },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [loading, messages.length, conversationId, lead],
-  );
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    sendMessage(input);
+    return value
+      .replace(/_/g, " ")
+      .split(" ")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
   };
 
+  const getLeadLocation = (lead) => lead.city || lead.area || "—";
+  const getLeadPostalCode = (lead) => lead.postal_code || lead.postcode || "—";
+  const getLeadUsage = (lead) =>
+    lead.electricity_kwh_year || lead.annual_consumption_kwh || "—";
+  const getLeadBudget = (lead) =>
+    lead.financial_profile || lead.budget_band || "—";
+  const getLeadGoal = (lead) => lead.notes || lead.customer_goal || "—";
+
+  if (!lead) {
+    return (
+      <div className="lead-page">
+        <div className="lead-page-container">
+          <button className="back-link-btn" onClick={() => navigate("/form")}>
+            <ArrowLeft size={18} />
+            Back
+          </button>
+
+          <div className="lead-not-found-card">
+            <h2>Lead not found</h2>
+            <p>The requested customer profile does not exist.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="lead-detail-page">
-      <button className="back-link-btn" onClick={() => navigate("/form")}>
-        <ArrowLeft size={18} /> Back
-      </button>
+    <div className="lead-page">
+      <div className="dashboard-bg-glow dashboard-glow-1"></div>
+      <div className="dashboard-bg-glow dashboard-glow-2"></div>
+      <div className="dashboard-grid-overlay"></div>
 
-      <h1>{lead.name}</h1>
-
-      <div className="lead-detail-card">
-        <p><strong>Area:</strong> {lead.area}</p>
-        <p><strong>Postcode:</strong> {lead.postcode}</p>
-        <p><strong>Household:</strong> {lead.household}</p>
-        <p><strong>Product:</strong> {lead.product_interest}</p>
-        <p><strong>Consumption:</strong> {lead.annual_consumption_kwh} kWh/year</p>
-        <p><strong>Budget:</strong> {lead.budget_band}</p>
-        <p><strong>Goal:</strong> {lead.customer_goal}</p>
-      </div>
-
-      <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
-        <button
-          className="primary-btn"
-          onClick={() => navigate(`/chat`)}
+      <div className="lead-page-container">
+        <motion.div
+          className="lead-page-header"
+          initial={{ opacity: 0, y: -18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
         >
-          Open Full Chat
-        </button>
-        <button
-          className="secondary-btn"
-          onClick={() => navigate("/report")}
+          <button className="back-link-btn" onClick={() => navigate("/form")}>
+            <ArrowLeft size={18} />
+            Back
+          </button>
+
+          <div className="lead-page-title-row">
+            <div>
+              <p className="dashboard-kicker">Lead Detail Workspace</p>
+              <h1>{lead.name}</h1>
+              <p className="lead-page-subtitle">
+                Review this customer profile and prepare the sales conversation.
+              </p>
+            </div>
+
+            <span className="lead-preview-tag">
+              {formatProduct(lead.product_interest)}
+            </span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="lead-detail-layout"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.08 }}
         >
-          View Report
-        </button>
-      </div>
-
-      {/* Chat FAB */}
-      <button
-        className="dashboard-chat-fab"
-        onClick={() => setChatOpen(true)}
-      >
-        <MessageCircle size={22} />
-      </button>
-
-      <AnimatePresence>
-        {chatOpen && (
-          <motion.div
-            className="dashboard-chat-modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="dashboard-chat-box"
-              initial={{ opacity: 0, y: 18, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 14, scale: 0.98 }}
-              style={{ maxWidth: "480px", maxHeight: "600px", display: "flex", flexDirection: "column" }}
-            >
-              <div className="dashboard-chat-header">
+          <div className="lead-detail-left">
+            <div className="lead-info-card">
+              <div className="lead-info-header">
                 <div>
-                  <h3>AI Sales Agent</h3>
-                  <p>Helping with {lead.name}'s case</p>
+                  <p className="dashboard-kicker">Customer Overview</p>
+                  <h2>{lead.name}</h2>
                 </div>
-                <button className="chatbot-close-btn" onClick={() => setChatOpen(false)}>
-                  <X size={18} />
-                </button>
+                <span className="lead-status-badge">Active Lead</span>
               </div>
 
-              {/* Messages */}
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: "auto",
-                  padding: "16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
-                {messages.length === 0 && (
-                  <p style={{ color: "#94a3b8", fontSize: "0.9rem", textAlign: "center", marginTop: "40px" }}>
-                    Ask me anything about {lead.name}'s case — sales strategy, product recommendations, or how to handle objections.
+              <div className="lead-info-grid">
+                <div className="lead-info-item">
+                  <span><MapPin size={16} /> City</span>
+                  <p>{getLeadLocation(lead)}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><MapPin size={16} /> Postal Code</span>
+                  <p>{getLeadPostalCode(lead)}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Users size={16} /> Household Size</span>
+                  <p>{lead.household_size || "—"} people</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Zap size={16} /> Electricity Usage</span>
+                  <p>{getLeadUsage(lead)} kWh</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Wallet size={16} /> Budget / Profile</span>
+                  <p>{getLeadBudget(lead)}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Target size={16} /> Product Interest</span>
+                  <p>{formatProduct(lead.product_interest)}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Home size={16} /> House Type</span>
+                  <p>{lead.house_type || "—"}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Calendar size={16} /> Build Year</span>
+                  <p>{lead.build_year || "—"}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><MapPin size={16} /> Roof Orientation</span>
+                  <p>{lead.roof_orientation || "—"}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Flame size={16} /> Heating Type</span>
+                  <p>{lead.heating_type || "—"}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Wallet size={16} /> Monthly Energy Bill</span>
+                  <p>
+                    {lead.monthly_energy_bill_eur
+                      ? `€${lead.monthly_energy_bill_eur}`
+                      : "—"}
                   </p>
-                )}
+                </div>
 
-                {messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                      maxWidth: "85%",
-                      padding: "10px 14px",
-                      borderRadius: "14px",
-                      fontSize: "0.9rem",
-                      lineHeight: "1.6",
-                      background:
-                        msg.role === "user"
-                          ? "linear-gradient(135deg, #2563eb, #14b8a6)"
-                          : "rgba(255,255,255,0.08)",
-                      color: "#fff",
-                    }}
-                  >
-                    {msg.agent && (
-                      <div style={{ fontSize: "0.7rem", color: "#93c5fd", marginBottom: "4px" }}>
-                        {msg.agent}
-                      </div>
-                    )}
-                    {msg.content}
-                  </div>
-                ))}
+                <div className="lead-info-item">
+                  <span><FileText size={16} /> Existing Assets</span>
+                  <p>{lead.existing_assets || "—"}</p>
+                </div>
 
-                {loading && (
-                  <div style={{ alignSelf: "flex-start", color: "#94a3b8", fontSize: "0.85rem" }}>
-                    <Loader2 size={16} style={{ display: "inline", animation: "spin 1s linear infinite" }} />
-                    {" "}Thinking...
-                  </div>
-                )}
+                <div className="lead-info-item full-width">
+                  <span><FileText size={16} /> Notes / Goal</span>
+                  <p>{getLeadGoal(lead)}</p>
+                </div>
               </div>
 
-              {/* Input */}
-              <form
-                onSubmit={handleSubmit}
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  padding: "12px 16px",
-                  borderTop: "1px solid rgba(255,255,255,0.1)",
-                }}
-              >
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about this lead..."
-                  disabled={loading}
-                  style={{
-                    flex: 1,
-                    background: "rgba(255,255,255,0.07)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "12px",
-                    padding: "10px 14px",
-                    color: "#fff",
-                    fontSize: "0.9rem",
-                    outline: "none",
-                  }}
-                />
+              <div className="lead-action-buttons">
+               <button
+  className="primary-btn"
+  onClick={() => navigate("/chat", { state: { lead } })}
+>
+  Open Full Chat
+</button>
+
                 <button
-                  type="submit"
-                  disabled={loading || !input.trim()}
-                  className="primary-btn"
-                  style={{ padding: "10px 16px", borderRadius: "12px" }}
+                  className="secondary-btn"
+                  onClick={() => navigate("/report")}
                 >
-                  <Send size={16} />
+                  View Report
                 </button>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </div>
+            </div>
+
+            <div className="lead-summary-card">
+              <p className="dashboard-kicker">Suggested Sales Angle</p>
+              <h3>How to approach this lead</h3>
+              <p>
+                Focus on the customer’s main priority, explain the long-term
+                value of the selected product, and connect the recommendation
+                to their household size, energy usage, current heating setup,
+                and financial profile.
+              </p>
+            </div>
+          </div>
+
+         
+        </motion.div>
+      </div>
     </div>
   );
 }
