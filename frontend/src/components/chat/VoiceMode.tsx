@@ -11,16 +11,15 @@ export default function VoiceMode({ projectId }: Props) {
   const {
     isRecording,
     isProcessing,
-    isPlaying,
+    isSpeaking,
     error,
     startRecording,
     stopRecording,
-    stopPlayback,
+    stopSpeaking,
     messages,
     activeAgent,
   } = useVoiceChat(projectId);
 
-  // Get the last assistant message to show as subtitle
   const lastAssistantMsg = [...messages]
     .reverse()
     .find((m) => m.role === "assistant");
@@ -31,30 +30,27 @@ export default function VoiceMode({ projectId }: Props) {
   const handleMicClick = () => {
     if (isRecording) {
       stopRecording();
-    } else if (isPlaying) {
-      stopPlayback();
+    } else if (isSpeaking) {
+      stopSpeaking();
     } else if (!isProcessing) {
       startRecording();
     }
   };
 
-  // Status text
   let statusText = "Tap to speak";
   if (isRecording) statusText = "Listening...";
   if (isProcessing) statusText = "Thinking...";
-  if (isPlaying) statusText = "Speaking...";
+  if (isSpeaking) statusText = "Speaking...";
   if (error) statusText = error;
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 px-8">
-      {/* Agent badge */}
       {activeAgent && (
         <div className="mb-8">
           <AgentBadge agentName={activeAgent} />
         </div>
       )}
 
-      {/* Last transcript (what the user said) */}
       {lastUserMsg && (
         <div className="mb-4 max-w-md text-center">
           <p className="text-xs text-gray-500 mb-1">You said:</p>
@@ -64,7 +60,6 @@ export default function VoiceMode({ projectId }: Props) {
         </div>
       )}
 
-      {/* Mic button */}
       <button
         onClick={handleMicClick}
         disabled={isProcessing}
@@ -73,22 +68,21 @@ export default function VoiceMode({ projectId }: Props) {
           "focus:outline-none focus:ring-4 focus:ring-blue-500/30",
           isRecording && "bg-red-600 scale-110 animate-pulse",
           isProcessing && "bg-gray-700 cursor-not-allowed",
-          isPlaying && "bg-purple-600 scale-105",
-          !isRecording && !isProcessing && !isPlaying && "bg-blue-600 hover:bg-blue-500 hover:scale-105",
+          isSpeaking && "bg-purple-600 scale-105",
+          !isRecording && !isProcessing && !isSpeaking && "bg-blue-600 hover:bg-blue-500 hover:scale-105",
         )}
       >
         {isProcessing ? (
           <Loader2 className="w-10 h-10 animate-spin" />
         ) : isRecording ? (
           <MicOff className="w-10 h-10" />
-        ) : isPlaying ? (
+        ) : isSpeaking ? (
           <CircleStop className="w-10 h-10" />
         ) : (
           <Mic className="w-10 h-10" />
         )}
       </button>
 
-      {/* Status text */}
       <p
         className={clsx(
           "mt-6 text-sm",
@@ -98,7 +92,6 @@ export default function VoiceMode({ projectId }: Props) {
         {statusText}
       </p>
 
-      {/* Animated rings when recording */}
       {isRecording && (
         <div className="mt-4 flex gap-1.5">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -114,8 +107,7 @@ export default function VoiceMode({ projectId }: Props) {
         </div>
       )}
 
-      {/* Animated rings when playing */}
-      {isPlaying && (
+      {isSpeaking && (
         <div className="mt-4 flex gap-1.5">
           {[0, 1, 2, 3, 4].map((i) => (
             <div
@@ -130,7 +122,6 @@ export default function VoiceMode({ projectId }: Props) {
         </div>
       )}
 
-      {/* Last agent response (abbreviated) */}
       {lastAssistantMsg && !isRecording && (
         <div className="mt-8 max-w-lg text-center">
           <div className="flex items-center justify-center gap-2 mb-2">

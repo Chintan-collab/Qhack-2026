@@ -7,27 +7,71 @@ const VOICE_CHAT_URL = "/api/v1/voice/chat";
 interface VoiceChatState {
   isRecording: boolean;
   isProcessing: boolean;
-  isPlaying: boolean;
+  isSpeaking: boolean;
   error: string | null;
 }
 
+interface VoiceChatResponse {
+  transcript: string;
+  reply: string;
+  conversation_id: string;
+  agent_name?: string;
+  phase?: string;
+}
+
 /**
- * Full voice mode hook: record → transcribe → agent → TTS → playback.
- * One mic press = one full round-trip. No text shown during voice mode,
- * everything is audio in / audio out.
+ * Speak text using the browser's built-in SpeechSynthesis API.
+ * Returns a promise that resolves when speech finishes.
+ */
+function speakText(text: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!("speechSynthesis" in window)) {
+      reject(new Error("Speech synthesis not supported"));
+      return;
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Try to pick a natural-sounding voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(
+      (v) =>
+        v.lang.startsWith("en") &&
+        (v.name.includes("Google") ||
+          v.name.includes("Natural") ||
+          v.name.includes("Samantha") ||
+          v.name.includes("Daniel")),
+    );
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onend = () => resolve();
+    utterance.onerror = (e) => reject(e);
+
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+/**
+ * Full voice mode: record → Gemini transcribe → agent → browser TTS.
+ * Audio in, audio out. No text input needed.
  */
 export function useVoiceChat(projectId?: string) {
   const store = useChatStore();
   const [state, setState] = useState<VoiceChatState>({
     isRecording: false,
     isProcessing: false,
-    isPlaying: false,
+    isSpeaking: false,
     error: null,
   });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const startRecording = useCallback(async () => {
     setState((s) => ({ ...s, isRecording: true, error: null }));
@@ -71,12 +115,9 @@ export function useVoiceChat(projectId?: string) {
     setState((s) => ({ ...s, isRecording: false }));
   }, []);
 
-  const stopPlayback = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    setState((s) => ({ ...s, isPlaying: false }));
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setState((s) => ({ ...s, isSpeaking: false }));
   }, []);
 
   const processVoiceRoundTrip = useCallback(
@@ -84,13 +125,11 @@ export function useVoiceChat(projectId?: string) {
       setState((s) => ({ ...s, isProcessing: true }));
 
       try {
+        // Send audio to backend (Gemini STT + agent pipeline)
         const formData = new FormData();
         formData.append("audio", audioBlob, "recording.webm");
         if (store.activeConversationId) {
-          formData.append(
-            "conversation_id",
-            store.activeConversationId,
-          );
+          formData.append("conversation_id", store.activeConversationId);
         }
         if (projectId) {
           formData.append("project_id", projectId);
@@ -102,79 +141,57 @@ export function useVoiceChat(projectId?: string) {
         });
 
         if (!response.ok) {
-          throw new Error(
-            `Voice chat failed: ${response.statusText}`,
-          );
+          throw new Error(`Voice chat failed: ${response.statusText}`);
         }
 
-        // Read metadata from headers
-        const transcript =
-          response.headers.get("X-Transcript") ?? "";
-        const agentReply =
-          response.headers.get("X-Agent-Reply") ?? "";
-        const conversationId =
-          response.headers.get("X-Conversation-Id") ?? "";
-        const agentName =
-          response.headers.get("X-Agent-Name") ?? undefined;
-        const phase =
-          response.headers.get("X-Phase") ?? undefined;
+        const data: VoiceChatResponse = await response.json();
 
-        // Update conversation ID
-        if (conversationId && !store.activeConversationId) {
-          store.setActiveConversation(conversationId);
+        // Update store
+        if (data.conversation_id && !store.activeConversationId) {
+          store.setActiveConversation(data.conversation_id);
+        }
+        if (data.phase) {
+          store.setCurrentPhase(data.phase);
         }
 
-        // Update phase
-        if (phase) {
-          store.setCurrentPhase(phase);
-        }
-
-        // Add messages to store (visible in message history)
+        // Add messages to history
         const userMsg: Message = {
           id: crypto.randomUUID(),
           role: "user",
-          content: transcript,
+          content: data.transcript,
           timestamp: new Date().toISOString(),
           metadata: { voice: true },
         };
         const assistantMsg: Message = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: agentReply,
-          agentName: agentName,
+          content: data.reply,
+          agentName: data.agent_name,
           timestamp: new Date().toISOString(),
-          metadata: { voice: true, phase },
+          metadata: { voice: true, phase: data.phase },
         };
         store.addMessage(userMsg);
         store.addMessage(assistantMsg);
 
-        // Play the audio response
-        const audioBlob2 = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob2);
-        const audio = new Audio(audioUrl);
-        audioRef.current = audio;
-
+        // Speak the response using browser TTS
         setState((s) => ({
           ...s,
           isProcessing: false,
-          isPlaying: true,
+          isSpeaking: true,
         }));
 
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          audioRef.current = null;
-          setState((s) => ({ ...s, isPlaying: false }));
-        };
+        try {
+          await speakText(data.reply);
+        } catch {
+          // TTS failed silently — text is still in message history
+        }
 
-        audio.play();
+        setState((s) => ({ ...s, isSpeaking: false }));
       } catch (e) {
         setState((s) => ({
           ...s,
           isProcessing: false,
-          error:
-            e instanceof Error
-              ? e.message
-              : "Voice chat failed",
+          error: e instanceof Error ? e.message : "Voice chat failed",
         }));
       }
     },
@@ -185,7 +202,7 @@ export function useVoiceChat(projectId?: string) {
     ...state,
     startRecording,
     stopRecording,
-    stopPlayback,
+    stopSpeaking,
     messages: store.messages,
     activeAgent: store.activeAgent,
     currentPhase: store.currentPhase,
