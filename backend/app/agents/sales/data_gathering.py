@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import anthropic
 
@@ -171,11 +171,15 @@ class DataGatheringAgent(BaseAgent):
         if not reply_text.strip():
             if sales_data.phase == SalesPhase.RESEARCH:
                 reply_text = (
-                    "Great, I've captured all the key information! "
-                    "Let me now research your market and competitors."
+                    "I've captured all the key information about "
+                    "your company, products, and target market. "
+                    "Now I'll research your competitive landscape."
                 )
             else:
-                reply_text = "Got it, I've noted that down. What else can you tell me?"
+                reply_text = (
+                    "Got it, I've noted that down. "
+                    "What else can you tell me?"
+                )
 
         return AgentMessage(
             role=MessageRole.ASSISTANT,

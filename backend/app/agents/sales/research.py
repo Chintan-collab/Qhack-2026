@@ -18,20 +18,25 @@ from app.core.config import settings
 
 SYSTEM_PROMPT = (
     "You are a market research analyst. Given information "
-    "about a company and its products, you conduct competitive "
+    "about a company and its products, conduct competitive "
     "analysis and market research.\n\n"
-    "You have access to a `web_search` tool to find real-time "
-    "information. Use it to:\n"
+    "Use the `web_search` tool to find real-time data. "
+    "For each search:\n"
     "1. Search for direct competitors\n"
     "2. Find market trends and industry data\n"
     "3. Analyze competitive positioning\n"
     "4. Identify market size and growth\n\n"
-    "After each search, summarize what you found and update "
-    "the research data. When you have gathered enough "
-    "competitive intelligence (at least 2-3 competitors and "
-    "key market trends), call `mark_research_complete`.\n\n"
-    "Be thorough but efficient. Focus on actionable insights "
-    "for the sales team."
+    "After searching, use `store_competitor` and "
+    "`store_market_trends` to save your findings.\n\n"
+    "When you have gathered enough intelligence "
+    "(at least 2-3 competitors and key trends), "
+    "STOP searching and present a clear summary of:\n"
+    "- Competitors found and their strengths/weaknesses\n"
+    "- Market trends and size\n"
+    "- Key insights for the sales strategy\n\n"
+    "End your summary by saying you are ready to move "
+    "to the strategy phase. Do NOT ask the user what "
+    "to search — you already have the company data."
 )
 
 SEARCH_TOOL = {
@@ -96,26 +101,12 @@ STORE_TRENDS_TOOL = {
     },
 }
 
-COMPLETE_TOOL = {
-    "name": "mark_research_complete",
-    "description": "Mark research phase as complete",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "summary": {
-                "type": "string",
-                "description": "Summary of research findings",
-            },
-        },
-        "required": ["summary"],
-    },
-}
-
+# No mark_research_complete tool — the supervisor detects
+# completion via is_research_complete() and auto-transitions.
 ALL_TOOLS = [
     SEARCH_TOOL,
     STORE_COMPETITOR_TOOL,
     STORE_TRENDS_TOOL,
-    COMPLETE_TOOL,
 ]
 
 
@@ -157,11 +148,15 @@ class ResearchAgent(BaseAgent):
         known = json.dumps(
             {
                 "company": sales_data.company_name,
+                "company_description": (
+                    sales_data.company_description
+                ),
                 "products": [
                     p.model_dump() for p in sales_data.products
                 ],
                 "target_market": sales_data.target_market,
                 "industry": sales_data.industry,
+                "pain_points": sales_data.pain_points,
             },
             indent=2,
         )
@@ -174,7 +169,7 @@ class ResearchAgent(BaseAgent):
             {"role": "user", "content": message.content}
         ]
 
-        # Multi-step agentic loop
+        # Multi-step agentic loop: LLM searches, stores, repeats
         all_text = ""
         for _ in range(settings.MAX_AGENT_STEPS):
             response = await client.messages.create(
@@ -219,10 +214,7 @@ class ResearchAgent(BaseAgent):
             })
 
         if not all_text.strip():
-            all_text = (
-                "I've completed the market research. "
-                "Let me now help develop your sales strategy."
-            )
+            all_text = self._build_summary(sales_data)
 
         return AgentMessage(
             role=MessageRole.ASSISTANT,
@@ -230,6 +222,27 @@ class ResearchAgent(BaseAgent):
             agent_name=self.name,
             metadata={"phase": sales_data.phase.value},
         )
+
+    def _build_summary(self, sales_data: SalesData) -> str:
+        """Fallback summary if LLM didn't produce text."""
+        parts = ["Here's what I found:\n"]
+        if sales_data.competitors:
+            parts.append("**Competitors:**")
+            for c in sales_data.competitors:
+                parts.append(f"- {c.name}: {c.description}")
+        if sales_data.market_trends:
+            parts.append("\n**Market Trends:**")
+            for t in sales_data.market_trends:
+                parts.append(f"- {t}")
+        if sales_data.market_size:
+            parts.append(
+                f"\n**Market Size:** {sales_data.market_size}"
+            )
+        parts.append(
+            "\nResearch complete — "
+            "moving to the strategy phase."
+        )
+        return "\n".join(parts)
 
     async def _handle_tool(
         self,
@@ -262,16 +275,13 @@ class ResearchAgent(BaseAgent):
                 if trend not in sales_data.market_trends:
                     sales_data.market_trends.append(trend)
             if tool_input.get("market_size"):
-                sales_data.market_size = tool_input["market_size"]
+                sales_data.market_size = (
+                    tool_input["market_size"]
+                )
             for insight in tool_input.get("insights", []):
                 if insight not in sales_data.industry_insights:
                     sales_data.industry_insights.append(insight)
             return "Market trends stored"
-
-        if tool_name == "mark_research_complete":
-            sales_data.phase = SalesPhase.STRATEGY
-            summary = tool_input.get("summary", "")
-            return f"Research complete: {summary}"
 
         return "Unknown tool"
 
