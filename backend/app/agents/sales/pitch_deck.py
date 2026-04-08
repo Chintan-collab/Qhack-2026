@@ -1,9 +1,8 @@
 import json
 from dataclasses import dataclass
 
-import anthropic
-
 from app.agents.base.agent import BaseAgent
+from app.agents.base.llm import chat_completion
 from app.agents.base.types import AgentContext, AgentMessage, MessageRole
 from app.agents.sales.schemas import SalesData, SalesPhase
 from app.core.config import settings
@@ -43,11 +42,9 @@ class PitchDeckAgent(BaseAgent):
         else:
             sales_data = SalesData()
 
-        client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-
         data_dump = json.dumps(sales_data.model_dump(), indent=2)
 
-        response = await client.messages.create(
+        response = await chat_completion(
             model=self.model,
             max_tokens=4096,
             system=self.system_prompt,
@@ -55,7 +52,8 @@ class PitchDeckAgent(BaseAgent):
                 {
                     "role": "user",
                     "content": (
-                        f"Generate the complete pitch deck report based on this data:\n\n"
+                        "Generate the complete pitch deck report "
+                        "based on this data:\n\n"
                         f"```json\n{data_dump}\n```\n\n"
                         f"Additional user request: {message.content}"
                     ),
@@ -63,10 +61,7 @@ class PitchDeckAgent(BaseAgent):
             ],
         )
 
-        report_text = ""
-        for block in response.content:
-            if block.type == "text":
-                report_text += block.text
+        report_text = response.text
 
         # Store the deliverable
         sales_data.phase = SalesPhase.COMPLETE

@@ -3,7 +3,8 @@ import os
 
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 
 from app.core.config import settings
 from app.db.session import get_db
@@ -16,23 +17,23 @@ router = APIRouter()
 
 async def _transcribe_with_gemini(audio_bytes: bytes, filename: str) -> str:
     """Transcribe audio using Gemini's multimodal capabilities."""
-    genai.configure(api_key=settings.GEMINI_API_KEY)
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-    # Write audio to a temp file (Gemini SDK needs a file path)
+    # Write audio to a temp file for upload
     suffix = os.path.splitext(filename)[1] or ".webm"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
         f.write(audio_bytes)
         tmp_path = f.name
 
     try:
-        audio_file = genai.upload_file(tmp_path)
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content(
-            [
+        audio_file = client.files.upload(file=tmp_path)
+        response = await client.aio.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[
                 audio_file,
                 "Transcribe this audio exactly as spoken. "
                 "Return only the transcription, nothing else.",
-            ]
+            ],
         )
         return response.text.strip()
     finally:

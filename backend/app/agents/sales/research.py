@@ -1,9 +1,8 @@
 import json
 from dataclasses import dataclass
 
-import anthropic
-
 from app.agents.base.agent import BaseAgent
+from app.agents.base.llm import chat_completion
 from app.agents.base.types import (
     AgentContext,
     AgentMessage,
@@ -141,9 +140,6 @@ class ResearchAgent(BaseAgent):
         message: AgentMessage,
     ) -> AgentMessage:
         sales_data = _get_sales_data(context)
-        client = anthropic.AsyncAnthropic(
-            api_key=settings.ANTHROPIC_API_KEY
-        )
 
         known = json.dumps(
             {
@@ -172,7 +168,7 @@ class ResearchAgent(BaseAgent):
         # Multi-step agentic loop: LLM searches, stores, repeats
         all_text = ""
         for _ in range(settings.MAX_AGENT_STEPS):
-            response = await client.messages.create(
+            response = await chat_completion(
                 model=self.model,
                 max_tokens=2048,
                 system=system,
@@ -181,20 +177,18 @@ class ResearchAgent(BaseAgent):
             )
 
             tool_results = []
-            for block in response.content:
-                if block.type == "text":
-                    all_text += block.text
-                elif block.type == "tool_use":
-                    result = await self._handle_tool(
-                        block.name,
-                        block.input,
-                        sales_data,
-                    )
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result,
-                    })
+            all_text += response.text
+            for tc in response.tool_calls:
+                result = await self._handle_tool(
+                    tc.name,
+                    tc.input,
+                    sales_data,
+                )
+                tool_results.append({
+                    "type": "tool_result",
+                    "name": tc.name,
+                    "content": result,
+                })
 
             _save(context, sales_data)
 
@@ -206,11 +200,11 @@ class ResearchAgent(BaseAgent):
 
             messages.append({
                 "role": "assistant",
-                "content": response.content,
+                "content": response.text or "Using tools.",
             })
             messages.append({
                 "role": "user",
-                "content": tool_results,
+                "content": f"Tool results: {json.dumps(tool_results)}",
             })
 
         if not all_text.strip():

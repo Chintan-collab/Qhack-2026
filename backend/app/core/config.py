@@ -13,22 +13,21 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/agent_chat"
+    # Database (SQLite for local dev, override with PostgreSQL in production)
+    DATABASE_URL: str = "sqlite+aiosqlite:///./agent_chat.db"
 
-    # Redis (agent memory / pub-sub)
-    REDIS_URL: str = "redis://localhost:6379/0"
-
-    # LLM Providers
-    ANTHROPIC_API_KEY: str = ""
+    # LLM Providers — set the key for whichever provider you want to use
+    LLM_PROVIDER: str = "gemini"  # "gemini", "anthropic", or "openai"
     GEMINI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
 
     # Search API (Tavily, SerpAPI, etc.)
     SEARCH_API_KEY: str = ""
     SEARCH_PROVIDER: str = "tavily"
 
     # Agent defaults
-    DEFAULT_MODEL: str = "claude-sonnet-4-20250514"
+    DEFAULT_MODEL: str = "gemini-2.0-flash"
     MAX_AGENT_STEPS: int = 25
     AGENT_TIMEOUT_SECONDS: int = 120
 

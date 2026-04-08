@@ -1,9 +1,8 @@
 import json
 from dataclasses import dataclass
 
-import anthropic
-
 from app.agents.base.agent import BaseAgent
+from app.agents.base.llm import chat_completion
 from app.agents.base.types import AgentContext, AgentMessage, MessageRole
 from app.agents.sales.schemas import ObjectionResponse, SalesData, SalesPhase
 from app.core.config import settings
@@ -128,9 +127,6 @@ class StrategyAgent(BaseAgent):
         message: AgentMessage,
     ) -> AgentMessage:
         sales_data = _get_sales_data(context)
-        client = anthropic.AsyncAnthropic(
-            api_key=settings.ANTHROPIC_API_KEY
-        )
 
         # Build full context of what's been collected
         known = json.dumps(
@@ -190,7 +186,7 @@ class StrategyAgent(BaseAgent):
             "content": message.content,
         })
 
-        response = await client.messages.create(
+        response = await chat_completion(
             model=self.model,
             max_tokens=2048,
             system=system,
@@ -202,14 +198,11 @@ class StrategyAgent(BaseAgent):
             ],
         )
 
-        reply_text = ""
-        for block in response.content:
-            if block.type == "text":
-                reply_text += block.text
-            elif block.type == "tool_use":
-                self._handle_tool(
-                    block.name, block.input, sales_data
-                )
+        reply_text = response.text
+        for tc in response.tool_calls:
+            self._handle_tool(
+                tc.name, tc.input, sales_data
+            )
 
         _save_sales_data(context, sales_data)
 
