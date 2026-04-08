@@ -19,18 +19,18 @@ PHASE_AGENT_MAP: dict[SalesPhase, str] = {
 # transitioning to a new phase without user input.
 HANDOFF_PROMPTS: dict[SalesPhase, str] = {
     SalesPhase.RESEARCH: (
-        "The data gathering phase is complete. "
-        "Please conduct competitive analysis and market research "
-        "based on the company data collected so far."
+        "Customer data gathering is complete. "
+        "Research regional energy incentives, pricing, and "
+        "market data for this customer's area."
     ),
     SalesPhase.STRATEGY: (
         "Market research is complete. "
-        "Please review the findings and propose a sales "
-        "positioning strategy for the user to review."
+        "Propose a personalized sales strategy for this "
+        "customer based on the research findings."
     ),
     SalesPhase.DELIVERABLE: (
         "The sales strategy has been finalized. "
-        "Please generate the complete pitch deck report."
+        "Generate the personalized pitch deck for the customer."
     ),
 }
 

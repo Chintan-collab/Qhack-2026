@@ -8,58 +8,44 @@ from app.agents.sales.schemas import ObjectionResponse, SalesData, SalesPhase
 from app.core.config import settings
 
 SYSTEM_PROMPT = """\
-You are a sales strategist working with a user to develop their \
-sales strategy. You have company data and market research available.
+You are a sales strategist helping an energy installer build a pitch for a \
+residential customer. You have the customer's property data and market research.
 
-IMPORTANT RULES FOR THIS CONVERSATION:
+IMPORTANT RULES:
 - Work through ONE element at a time. Do NOT dump everything at once.
-- After proposing each element, WAIT for the user to approve or give feedback.
-- Only call `store_strategy` for elements the user has approved.
-- Only call `mark_strategy_complete` when the user explicitly says \
-they are satisfied or wants to proceed to the pitch deck.
+- After proposing each element, WAIT for the installer to approve or tweak.
+- Only call `store_strategy` for elements the installer approves.
+- Only call `mark_strategy_complete` when the installer says to proceed.
 
 Work through these elements in order:
-1. **Positioning** — Propose how the product should be positioned. \
-Ask if the user agrees or wants changes.
-2. **Value Proposition** — Propose a one-line value prop. Wait for approval.
-3. **Key Messages** — Propose 3-5 key sales messages. Refine with the user.
-4. **Objection Handling** — Suggest common objections and responses. \
-Ask if the user wants to add or change any.
-5. **Target Personas** — Describe 2-3 buyer personas. Confirm with the user.
+1. **Value Proposition** — Why this product makes sense for THIS customer \
+(based on their energy usage, house, heating type, costs).
+2. **Savings Estimate** — Estimated annual savings and payback period.
+3. **Key Messages** — 3-5 talking points tailored to the customer's concerns.
+4. **Financing Options** — Based on the customer's financial profile.
+5. **Objection Handling** — Likely objections and responses.
 
-After ALL elements are approved, ask: "Are you happy with the strategy? \
-Should I generate the pitch deck?" Only call `mark_strategy_complete` \
-if they say yes.
+After ALL elements are approved, ask: "Ready to generate the pitch deck?" \
+Only call `mark_strategy_complete` if they say yes.
 
-Start by proposing the positioning statement."""
+Start by proposing the value proposition."""
 
 STORE_STRATEGY_TOOL = {
     "name": "store_strategy",
-    "description": (
-        "Store a strategy element that the user has approved. "
-        "Only call this AFTER the user confirms they are happy "
-        "with the proposed element."
-    ),
+    "description": "Store an approved strategy element",
     "input_schema": {
         "type": "object",
         "properties": {
-            "positioning": {
-                "type": "string",
-                "description": "Market positioning statement",
-            },
-            "value_proposition": {
-                "type": "string",
-                "description": "Core value proposition",
-            },
+            "value_proposition": {"type": "string"},
+            "savings_estimate": {"type": "string"},
+            "payback_period": {"type": "string"},
             "key_messages": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "Key sales messages",
             },
-            "target_personas": {
+            "financing_options": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "Target buyer personas",
             },
         },
     },
@@ -67,9 +53,7 @@ STORE_STRATEGY_TOOL = {
 
 STORE_OBJECTION_TOOL = {
     "name": "store_objection",
-    "description": (
-        "Store an objection/response pair the user approved"
-    ),
+    "description": "Store an approved objection/response pair",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -83,9 +67,8 @@ STORE_OBJECTION_TOOL = {
 COMPLETE_TOOL = {
     "name": "mark_strategy_complete",
     "description": (
-        "Mark strategy as finalized. ONLY call this when the "
-        "user explicitly confirms they are satisfied with all "
-        "strategy elements and wants to generate the pitch deck."
+        "Mark strategy as finalized. ONLY call when the "
+        "installer confirms they want the pitch deck."
     ),
     "input_schema": {
         "type": "object",
@@ -116,8 +99,8 @@ def _save_sales_data(
 class StrategyAgent(BaseAgent):
     name: str = "strategy"
     description: str = (
-        "Develops sales positioning, messaging, and "
-        "objection handling through multi-turn collaboration"
+        "Develops personalized energy sales strategy "
+        "through multi-turn collaboration"
     )
     system_prompt: str = SYSTEM_PROMPT
 
@@ -128,7 +111,6 @@ class StrategyAgent(BaseAgent):
     ) -> AgentMessage:
         sales_data = _get_sales_data(context)
 
-        # Build full context of what's been collected
         known = json.dumps(
             sales_data.model_dump(
                 exclude_none=True, exclude_defaults=True
@@ -140,27 +122,26 @@ class StrategyAgent(BaseAgent):
             + f"\n\nAll collected data:\n{known}"
         )
 
-        # Show what strategy elements are already stored
         stored = []
-        if sales_data.positioning:
-            stored.append(
-                f"Positioning: {sales_data.positioning}"
-            )
         if sales_data.value_proposition:
             stored.append(
                 f"Value prop: {sales_data.value_proposition}"
+            )
+        if sales_data.savings_estimate:
+            stored.append(
+                f"Savings: {sales_data.savings_estimate}"
             )
         if sales_data.key_messages:
             stored.append(
                 f"Key messages: {sales_data.key_messages}"
             )
+        if sales_data.financing_options:
+            stored.append(
+                f"Financing: {sales_data.financing_options}"
+            )
         if sales_data.objections:
             stored.append(
                 f"Objections: {len(sales_data.objections)} stored"
-            )
-        if sales_data.target_personas:
-            stored.append(
-                f"Personas: {sales_data.target_personas}"
             )
 
         if stored:
@@ -170,7 +151,6 @@ class StrategyAgent(BaseAgent):
                 + "\n\nContinue with the next unapproved element."
             )
 
-        # Include conversation history
         messages = []
         for msg in context.history:
             if msg.role in (
@@ -209,13 +189,12 @@ class StrategyAgent(BaseAgent):
         if not reply_text.strip():
             if sales_data.phase == SalesPhase.DELIVERABLE:
                 reply_text = (
-                    "The strategy is locked in. "
+                    "Strategy locked in. "
                     "Generating your pitch deck now."
                 )
             else:
                 reply_text = (
-                    "I've saved that. "
-                    "Let's move to the next element."
+                    "Saved. Let's move to the next element."
                 )
 
         return AgentMessage(
@@ -232,21 +211,25 @@ class StrategyAgent(BaseAgent):
         sales_data: SalesData,
     ) -> None:
         if tool_name == "store_strategy":
-            if tool_input.get("positioning"):
-                sales_data.positioning = (
-                    tool_input["positioning"]
-                )
             if tool_input.get("value_proposition"):
                 sales_data.value_proposition = (
                     tool_input["value_proposition"]
+                )
+            if tool_input.get("savings_estimate"):
+                sales_data.savings_estimate = (
+                    tool_input["savings_estimate"]
+                )
+            if tool_input.get("payback_period"):
+                sales_data.payback_period = (
+                    tool_input["payback_period"]
                 )
             if tool_input.get("key_messages"):
                 sales_data.key_messages = (
                     tool_input["key_messages"]
                 )
-            if tool_input.get("target_personas"):
-                sales_data.target_personas = (
-                    tool_input["target_personas"]
+            if tool_input.get("financing_options"):
+                sales_data.financing_options = (
+                    tool_input["financing_options"]
                 )
 
         elif tool_name == "store_objection":
@@ -264,12 +247,12 @@ class StrategyAgent(BaseAgent):
         self, context: AgentContext, task: str
     ) -> list[str]:
         return [
-            "Propose and refine positioning",
-            "Propose and refine value proposition",
+            "Propose value proposition",
+            "Estimate savings and payback",
             "Define key sales messages",
+            "Suggest financing options",
             "Prepare objection handling",
-            "Identify target personas",
-            "Get user approval to proceed",
+            "Get installer approval to proceed",
         ]
 
     async def can_handle(

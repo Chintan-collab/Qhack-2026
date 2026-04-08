@@ -4,10 +4,15 @@ import type { Message } from "../types/chat";
 
 const VOICE_CHAT_URL = "/api/v1/voice/chat";
 
+// Silence detection config
+const SILENCE_THRESHOLD = 0.015; // RMS level below which we consider "silence"
+const SILENCE_DURATION_MS = 1800; // How long silence must last to auto-stop
+
 interface VoiceChatState {
   isRecording: boolean;
   isProcessing: boolean;
   isSpeaking: boolean;
+  isLoopActive: boolean;
   error: string | null;
 }
 
@@ -17,20 +22,35 @@ interface VoiceChatResponse {
   conversation_id: string;
   agent_name?: string;
   phase?: string;
+  audio_base64?: string | null;
+}
+
+/** Currently playing audio element — stored so we can stop it */
+let currentAudio: HTMLAudioElement | null = null;
+
+/**
+ * Play base64-encoded MP3 audio from ElevenLabs.
+ */
+function playAudioBase64(base64: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
+    currentAudio = audio;
+    audio.onended = () => { currentAudio = null; resolve(); };
+    audio.onerror = (e) => { currentAudio = null; reject(e); };
+    audio.play().catch(reject);
+  });
 }
 
 /**
- * Speak text using the browser's built-in SpeechSynthesis API.
- * Returns a promise that resolves when speech finishes.
+ * Fallback: speak text using the browser's built-in SpeechSynthesis API.
  */
-function speakText(text: string): Promise<void> {
+function speakTextBrowser(text: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (!("speechSynthesis" in window)) {
       reject(new Error("Speech synthesis not supported"));
       return;
     }
 
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -38,7 +58,6 @@ function speakText(text: string): Promise<void> {
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
-    // Try to pick a natural-sounding voice
     const voices = window.speechSynthesis.getVoices();
     const preferred = voices.find(
       (v) =>
@@ -57,9 +76,25 @@ function speakText(text: string): Promise<void> {
   });
 }
 
+/** Play ElevenLabs audio if available, otherwise fall back to browser TTS. */
+async function speak(text: string, audioBase64?: string | null): Promise<void> {
+  if (audioBase64) {
+    return playAudioBase64(audioBase64);
+  }
+  return speakTextBrowser(text);
+}
+
+function stopAllAudio() {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  window.speechSynthesis.cancel();
+}
+
 /**
- * Full voice mode: record → Gemini transcribe → agent → browser TTS.
- * Audio in, audio out. No text input needed.
+ * Full voice mode: continuous conversation loop.
+ * Record → auto-stop on silence → transcribe → agent → TTS → repeat.
  */
 export function useVoiceChat(projectId?: string) {
   const store = useChatStore();
@@ -67,22 +102,57 @@ export function useVoiceChat(projectId?: string) {
     isRecording: false,
     isProcessing: false,
     isSpeaking: false,
+    isLoopActive: false,
     error: null,
   });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const silenceCheckRef = useRef<number | null>(null);
+  const loopActiveRef = useRef(false);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const cleanup = useCallback(() => {
+    if (silenceCheckRef.current) {
+      cancelAnimationFrame(silenceCheckRef.current);
+      silenceCheckRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    mediaRecorderRef.current = null;
+    analyserRef.current = null;
+  }, []);
 
   const startRecording = useCallback(async () => {
     setState((s) => ({ ...s, isRecording: true, error: null }));
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
-      const recorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm",
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Set up audio analysis for silence detection
+      const audioCtx = new AudioContext();
+      audioContextRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -91,14 +161,24 @@ export function useVoiceChat(projectId?: string) {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, {
-          type: "audio/webm",
-        });
-        await processVoiceRoundTrip(blob);
+        streamRef.current = null;
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        // Only process if we have meaningful audio (> 1KB)
+        if (blob.size > 1000) {
+          await processVoiceRoundTrip(blob);
+        } else {
+          // Too short, restart listening if loop is active
+          if (loopActiveRef.current) {
+            startRecording();
+          }
+        }
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start();
+      recorder.start(250); // collect chunks every 250ms
+
+      // Start silence detection
+      monitorSilence();
     } catch {
       setState((s) => ({
         ...s,
@@ -108,7 +188,63 @@ export function useVoiceChat(projectId?: string) {
     }
   }, []);
 
+  const monitorSilence = useCallback(() => {
+    const analyser = analyserRef.current;
+    if (!analyser) return;
+
+    const dataArray = new Float32Array(analyser.fftSize);
+    let silenceStart: number | null = null;
+
+    const check = () => {
+      if (!analyserRef.current || !mediaRecorderRef.current) return;
+      if (mediaRecorderRef.current.state !== "recording") return;
+
+      analyser.getFloatTimeDomainData(dataArray);
+
+      // Calculate RMS (root mean square) for volume level
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const val = dataArray[i]!;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+
+      if (rms < SILENCE_THRESHOLD) {
+        if (!silenceStart) {
+          silenceStart = Date.now();
+        } else if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
+          // Silence detected long enough — auto-stop
+          stopRecording();
+          return;
+        }
+      } else {
+        silenceStart = null;
+      }
+
+      silenceCheckRef.current = requestAnimationFrame(check);
+    };
+
+    // Wait a brief moment before starting detection
+    // so we don't trigger on initial silence before user speaks
+    silenceTimerRef.current = window.setTimeout(() => {
+      silenceCheckRef.current = requestAnimationFrame(check);
+    }, 1500);
+  }, []);
+
   const stopRecording = useCallback(() => {
+    if (silenceCheckRef.current) {
+      cancelAnimationFrame(silenceCheckRef.current);
+      silenceCheckRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+      analyserRef.current = null;
+    }
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
     }
@@ -116,7 +252,7 @@ export function useVoiceChat(projectId?: string) {
   }, []);
 
   const stopSpeaking = useCallback(() => {
-    window.speechSynthesis.cancel();
+    stopAllAudio();
     setState((s) => ({ ...s, isSpeaking: false }));
   }, []);
 
@@ -125,7 +261,6 @@ export function useVoiceChat(projectId?: string) {
       setState((s) => ({ ...s, isProcessing: true }));
 
       try {
-        // Send audio to backend (Gemini STT + agent pipeline)
         const formData = new FormData();
         formData.append("audio", audioBlob, "recording.webm");
         if (store.activeConversationId) {
@@ -146,7 +281,6 @@ export function useVoiceChat(projectId?: string) {
 
         const data: VoiceChatResponse = await response.json();
 
-        // Update store
         if (data.conversation_id && !store.activeConversationId) {
           store.setActiveConversation(data.conversation_id);
         }
@@ -154,7 +288,6 @@ export function useVoiceChat(projectId?: string) {
           store.setCurrentPhase(data.phase);
         }
 
-        // Add messages to history
         const userMsg: Message = {
           id: crypto.randomUUID(),
           role: "user",
@@ -173,7 +306,7 @@ export function useVoiceChat(projectId?: string) {
         store.addMessage(userMsg);
         store.addMessage(assistantMsg);
 
-        // Speak the response using browser TTS
+        // Speak the response
         setState((s) => ({
           ...s,
           isProcessing: false,
@@ -181,26 +314,64 @@ export function useVoiceChat(projectId?: string) {
         }));
 
         try {
-          await speakText(data.reply);
+          await speak(data.reply, data.audio_base64);
         } catch {
-          // TTS failed silently — text is still in message history
+          // TTS failed silently
         }
 
         setState((s) => ({ ...s, isSpeaking: false }));
+
+        // Loop: auto-start recording again after speaking
+        if (loopActiveRef.current) {
+          // Small pause before next listen
+          await new Promise((r) => setTimeout(r, 400));
+          if (loopActiveRef.current) {
+            startRecording();
+          }
+        }
       } catch (e) {
         setState((s) => ({
           ...s,
           isProcessing: false,
           error: e instanceof Error ? e.message : "Voice chat failed",
         }));
+        // Even on error, keep the loop going
+        if (loopActiveRef.current) {
+          await new Promise((r) => setTimeout(r, 1500));
+          if (loopActiveRef.current) {
+            startRecording();
+          }
+        }
       }
     },
     [store, projectId],
   );
 
+  /** Start the continuous voice conversation loop */
+  const startLoop = useCallback(() => {
+    loopActiveRef.current = true;
+    setState((s) => ({ ...s, isLoopActive: true, error: null }));
+    startRecording();
+  }, [startRecording]);
+
+  /** Stop the entire loop */
+  const stopLoop = useCallback(() => {
+    loopActiveRef.current = false;
+    stopAllAudio();
+    cleanup();
+    setState({
+      isRecording: false,
+      isProcessing: false,
+      isSpeaking: false,
+      isLoopActive: false,
+      error: null,
+    });
+  }, [cleanup]);
+
   return {
     ...state,
-    startRecording,
+    startLoop,
+    stopLoop,
     stopRecording,
     stopSpeaking,
     messages: store.messages,

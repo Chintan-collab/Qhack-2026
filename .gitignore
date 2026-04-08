@@ -32,3 +32,6 @@ build/
 # Database
 *.db
 *.sqlite3
+
+# Dev script
+.dev-pids

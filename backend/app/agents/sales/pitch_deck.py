@@ -5,35 +5,42 @@ from app.agents.base.agent import BaseAgent
 from app.agents.base.llm import chat_completion
 from app.agents.base.types import AgentContext, AgentMessage, MessageRole
 from app.agents.sales.schemas import SalesData, SalesPhase
-from app.core.config import settings
 
-SYSTEM_PROMPT = """You are an expert sales presentation writer. Given comprehensive sales data \
-(company info, market research, competitive analysis, and sales strategy), generate a \
-professional pitch deck report in Markdown format.
+SYSTEM_PROMPT = """\
+You are an expert at creating personalized energy sales pitch decks. \
+Given customer data, market research, and a sales strategy, generate a \
+professional pitch deck report in Markdown that the installer can present \
+to the customer.
 
 The report MUST include these sections:
-1. **Executive Summary** — One paragraph overview
-2. **Company Overview** — Who the company is and what they do
-3. **Product/Service** — Detailed description with key features
-4. **Market Opportunity** — Market size, trends, and growth
-5. **Competitive Landscape** — Key competitors and differentiation
-6. **Value Proposition** — Why customers should choose this product
-7. **Key Sales Messages** — The core messages for the sales team
-8. **Target Customer Profiles** — Who to sell to
-9. **Objection Handling Guide** — Common objections with responses
-10. **Recommended Next Steps** — Action items for the sales team
+1. **Customer Overview** — Name, location, property summary
+2. **Current Energy Situation** — Heating type, consumption, monthly costs
+3. **Recommended Solution** — What product(s) and why they fit this customer
+4. **Financial Benefits** — Savings estimate, payback period, ROI
+5. **Available Incentives** — Regional subsidies, tax credits, programs
+6. **Market Context** — Energy price trends, why now is a good time
+7. **Financing Options** — Based on the customer's profile
+8. **Common Questions & Answers** — Objection handling
+9. **Next Steps** — Clear action items for the customer
 
-Make it professional, data-driven, and actionable. Use tables, bullet points, and clear \
-formatting. This should be a document the sales team can immediately use."""
+Make it professional, personalized, and compelling. Use the customer's \
+name and specific data throughout. Use tables for financial comparisons. \
+This should be a document the installer can hand to the customer."""
 
 
 @dataclass
 class PitchDeckAgent(BaseAgent):
     name: str = "pitch_deck"
-    description: str = "Generates a comprehensive sales pitch deck report"
+    description: str = (
+        "Generates a personalized energy pitch deck"
+    )
     system_prompt: str = SYSTEM_PROMPT
 
-    async def execute(self, context: AgentContext, message: AgentMessage) -> AgentMessage:
+    async def execute(
+        self,
+        context: AgentContext,
+        message: AgentMessage,
+    ) -> AgentMessage:
         raw = context.shared_state.get("sales_data")
         if isinstance(raw, dict):
             sales_data = SalesData(**raw)
@@ -42,7 +49,9 @@ class PitchDeckAgent(BaseAgent):
         else:
             sales_data = SalesData()
 
-        data_dump = json.dumps(sales_data.model_dump(), indent=2)
+        data_dump = json.dumps(
+            sales_data.model_dump(), indent=2
+        )
 
         response = await chat_completion(
             model=self.model,
@@ -52,10 +61,10 @@ class PitchDeckAgent(BaseAgent):
                 {
                     "role": "user",
                     "content": (
-                        "Generate the complete pitch deck report "
-                        "based on this data:\n\n"
+                        "Generate the pitch deck for this "
+                        "customer:\n\n"
                         f"```json\n{data_dump}\n```\n\n"
-                        f"Additional user request: {message.content}"
+                        f"Installer notes: {message.content}"
                     ),
                 }
             ],
@@ -63,9 +72,10 @@ class PitchDeckAgent(BaseAgent):
 
         report_text = response.text
 
-        # Store the deliverable
         sales_data.phase = SalesPhase.COMPLETE
-        context.shared_state["sales_data"] = sales_data.model_dump()
+        context.shared_state["sales_data"] = (
+            sales_data.model_dump()
+        )
         context.shared_state["deliverable"] = report_text
 
         return AgentMessage(
@@ -78,8 +88,15 @@ class PitchDeckAgent(BaseAgent):
             },
         )
 
-    async def plan(self, context: AgentContext, task: str) -> list[str]:
-        return ["Generate pitch deck from accumulated sales data"]
+    async def plan(
+        self, context: AgentContext, task: str
+    ) -> list[str]:
+        return [
+            "Generate personalized pitch deck from "
+            "customer data and strategy"
+        ]
 
-    async def can_handle(self, message: AgentMessage) -> float:
+    async def can_handle(
+        self, message: AgentMessage
+    ) -> float:
         return 0.1

@@ -46,6 +46,31 @@ export default function LeadDetailPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
+  const [projectId, setProjectId] = useState(null);
+
+  // Create a project from lead data so the agent knows what's already collected
+  const ensureProject = useCallback(async () => {
+    if (projectId) return projectId;
+
+    const res = await fetch("/api/v1/projects/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: lead.name,
+        customer_name: lead.name,
+        postal_code: lead.postcode,
+        city: lead.area,
+        product_interest: lead.product_interest?.replace(/_/g, " + "),
+        household_size: lead.household,
+        electricity_kwh_year: lead.annual_consumption_kwh,
+        financial_profile: lead.budget_band,
+        notes: lead.customer_goal,
+      }),
+    });
+    const project = await res.json();
+    setProjectId(project.id);
+    return project.id;
+  }, [projectId, lead]);
 
   const sendMessage = useCallback(
     async (text) => {
@@ -57,22 +82,15 @@ export default function LeadDetailPage() {
       setLoading(true);
 
       try {
-        // First message: include lead context so the agent knows about this customer
-        let message = text;
-        if (messages.length === 0) {
-          message =
-            `[Lead context: ${lead.name}, ${lead.area}, ` +
-            `${lead.product_interest}, household ${lead.household}, ` +
-            `${lead.annual_consumption_kwh}kWh, budget ${lead.budget_band}, ` +
-            `goal: ${lead.customer_goal}]\n\n${text}`;
-        }
+        const pid = await ensureProject();
 
         const res = await fetch("/api/v1/chat/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             conversation_id: conversationId,
-            message,
+            project_id: pid,
+            message: text,
           }),
         });
         const data = await res.json();
@@ -98,7 +116,7 @@ export default function LeadDetailPage() {
         setLoading(false);
       }
     },
-    [loading, messages.length, conversationId, lead],
+    [loading, conversationId, ensureProject],
   );
 
   const handleSubmit = (e) => {
