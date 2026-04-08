@@ -40,6 +40,16 @@ export const api = {
       request<Project>("/projects/", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: Partial<ProjectCreate>) =>
       request<Project>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    getConversation: async (projectId: string): Promise<string | null> => {
+      try {
+        const data = await request<{ conversation_id: string }>(
+          `/projects/${projectId}/conversation`,
+        );
+        return data.conversation_id;
+      } catch {
+        return null; // No existing conversation
+      }
+    },
   },
 
   deliverables: {

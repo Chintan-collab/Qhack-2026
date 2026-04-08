@@ -48,9 +48,12 @@ export interface StreamEvent {
     | "phase_changed"
     | "data_extracted"
     | "search_result"
-    | "deliverable_ready";
+    | "deliverable_ready"
+    | "project_created";
   content?: string;
   agent?: string;
   phase?: string;
+  project_id?: string;
+  deliverable_id?: string;
   metadata?: Record<string, unknown>;
 }
