@@ -1,4 +1,4 @@
-import { Mic, MicOff, Loader2, Volume2, CircleStop } from "lucide-react";
+import { Mic, MicOff, Loader2, Volume2, PhoneOff } from "lucide-react";
 import clsx from "clsx";
 import { useVoiceChat } from "../../hooks/useVoiceChat";
 import AgentBadge from "../agents/AgentBadge";
@@ -12,10 +12,10 @@ export default function VoiceMode({ projectId }: Props) {
     isRecording,
     isProcessing,
     isSpeaking,
+    isLoopActive,
     error,
-    startRecording,
-    stopRecording,
-    stopSpeaking,
+    startLoop,
+    stopLoop,
     messages,
     activeAgent,
   } = useVoiceChat(projectId);
@@ -27,20 +27,18 @@ export default function VoiceMode({ projectId }: Props) {
     .reverse()
     .find((m) => m.role === "user");
 
-  const handleMicClick = () => {
-    if (isRecording) {
-      stopRecording();
-    } else if (isSpeaking) {
-      stopSpeaking();
-    } else if (!isProcessing) {
-      startRecording();
+  const handleMainClick = () => {
+    if (isLoopActive) {
+      stopLoop();
+    } else {
+      startLoop();
     }
   };
 
-  let statusText = "Tap to speak";
-  if (isRecording) statusText = "Listening...";
-  if (isProcessing) statusText = "Thinking...";
-  if (isSpeaking) statusText = "Speaking...";
+  let statusText = "Tap to start conversation";
+  if (isRecording) statusText = "Listening…";
+  if (isProcessing) statusText = "Thinking…";
+  if (isSpeaking) statusText = "Speaking…";
   if (error) statusText = error;
 
   return (
@@ -61,25 +59,27 @@ export default function VoiceMode({ projectId }: Props) {
       )}
 
       <button
-        onClick={handleMicClick}
-        disabled={isProcessing}
+        onClick={handleMainClick}
         className={clsx(
           "w-24 h-24 rounded-full flex items-center justify-center transition-all",
           "focus:outline-none focus:ring-4 focus:ring-blue-500/30",
           isRecording && "bg-red-600 scale-110 animate-pulse",
-          isProcessing && "bg-gray-700 cursor-not-allowed",
+          isProcessing && "bg-yellow-600 scale-105",
           isSpeaking && "bg-purple-600 scale-105",
-          !isRecording && !isProcessing && !isSpeaking && "bg-blue-600 hover:bg-blue-500 hover:scale-105",
+          !isLoopActive && "bg-blue-600 hover:bg-blue-500 hover:scale-105",
+          isLoopActive && !isRecording && !isProcessing && !isSpeaking && "bg-red-700 hover:bg-red-600",
         )}
       >
-        {isProcessing ? (
+        {!isLoopActive ? (
+          <Mic className="w-10 h-10" />
+        ) : isProcessing ? (
           <Loader2 className="w-10 h-10 animate-spin" />
         ) : isRecording ? (
           <MicOff className="w-10 h-10" />
         ) : isSpeaking ? (
-          <CircleStop className="w-10 h-10" />
+          <Volume2 className="w-10 h-10" />
         ) : (
-          <Mic className="w-10 h-10" />
+          <PhoneOff className="w-10 h-10" />
         )}
       </button>
 
@@ -91,6 +91,10 @@ export default function VoiceMode({ projectId }: Props) {
       >
         {statusText}
       </p>
+
+      {isLoopActive && !isRecording && !isProcessing && !isSpeaking && (
+        <p className="mt-2 text-xs text-gray-600">Tap to end conversation</p>
+      )}
 
       {isRecording && (
         <div className="mt-4 flex gap-1.5">

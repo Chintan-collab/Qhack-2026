@@ -19,11 +19,9 @@ FE_PORT=5173
 
 kill_by_port() {
   local port=$1
-  # Works on Windows (Git Bash / MSYS2) and Unix
   if command -v lsof &>/dev/null; then
     lsof -ti :"$port" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
   elif command -v netstat &>/dev/null; then
-    # Windows: parse netstat for PIDs listening on the port
     netstat -ano 2>/dev/null \
       | grep ":${port} " \
       | grep LISTENING \
@@ -44,11 +42,17 @@ kill_saved_pids() {
   fi
 }
 
+port_is_free() {
+  local port=$1
+  ! netstat -ano 2>/dev/null | grep ":${port} " | grep -q LISTENING
+}
+
 do_stop() {
   echo "==> Stopping dev stack..."
   kill_saved_pids
   kill_by_port $BE_PORT
   kill_by_port $FE_PORT
+  sleep 1
   echo "    All processes stopped."
 }
 

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     SEARCH_API_KEY: str = ""
     SEARCH_PROVIDER: str = "tavily"
 
+    # ElevenLabs TTS
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = "JBFqnCBsd6RMkjVDRZzb"  # "George" - natural male voice
+
     # Agent defaults
     DEFAULT_MODEL: str = "gemini-2.0-flash"
     MAX_AGENT_STEPS: int = 25
