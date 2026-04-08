@@ -3,8 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.models.conversation import Conversation
 from app.models.project import Project
-from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectResponse,
+    ProjectUpdate,
+)
 
 router = APIRouter()
 
@@ -52,3 +57,28 @@ async def update_project(
     await db.commit()
     await db.refresh(project)
     return project
+
+
+@router.get("/{project_id}/conversation")
+async def get_project_conversation(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get the most recent conversation for a project.
+
+    Returns {conversation_id: str} or 404 if none exists.
+    Used by the frontend to resume a project's chat.
+    """
+    result = await db.execute(
+        select(Conversation)
+        .where(Conversation.project_id == project_id)
+        .order_by(Conversation.updated_at.desc())
+        .limit(1)
+    )
+    conv = result.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(
+            status_code=404,
+            detail="No conversation found",
+        )
+    return {"conversation_id": conv.id}

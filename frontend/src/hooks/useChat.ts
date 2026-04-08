@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useChatStore } from "../store/chatStore";
 import { api } from "../services/api";
 import { createChatSocket } from "../services/websocket";
@@ -7,6 +7,19 @@ import type { Message, StreamEvent } from "../types/chat";
 export function useChat(projectId?: string) {
   const store = useChatStore();
   const wsRef = useRef<WebSocket | null>(null);
+  const initializedRef = useRef(false);
+
+  // On mount: if we have a projectId, look up existing conversation
+  useEffect(() => {
+    if (!projectId || initializedRef.current) return;
+    initializedRef.current = true;
+
+    api.projects.getConversation(projectId).then((convId) => {
+      if (convId) {
+        store.setActiveConversation(convId);
+      }
+    });
+  }, [projectId, store]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -24,11 +37,12 @@ export function useChat(projectId?: string) {
         message: content,
       });
 
+      // Store the conversation ID for subsequent messages
       if (!store.activeConversationId) {
         store.setActiveConversation(response.conversationId);
       }
 
-      // Extract phase from metadata if present
+      // Track phase changes
       const phase = response.metadata?.phase as string | undefined;
       if (phase) {
         store.setCurrentPhase(phase);
