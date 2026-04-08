@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agents.registry import registry
+from app.agents.sales.analysis import AnalysisAgent
 from app.agents.sales.data_gathering import DataGatheringAgent
 from app.agents.sales.research import ResearchAgent
 from app.agents.sales.strategy import StrategyAgent
@@ -29,6 +30,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Register sales agents
     registry.register(DataGatheringAgent())
     registry.register(ResearchAgent())
+    registry.register(AnalysisAgent())
     registry.register(StrategyAgent())
     registry.register(PitchDeckAgent())
     yield

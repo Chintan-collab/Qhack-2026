@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class SalesPhase(str, Enum):
     DATA_GATHERING = "data_gathering"
     RESEARCH = "research"
+    ANALYSIS = "analysis"
     STRATEGY = "strategy"
     DELIVERABLE = "deliverable"
     COMPLETE = "complete"
@@ -68,6 +69,40 @@ class SalesData(BaseModel):
     energy_price_outlook: str | None = None
     industry_insights: list[str] = []
 
+    # ── Analysis fields (inferred from APIs + LLM reasoning) ────
+    # Geocoding (Nominatim)
+    latitude: float | None = None
+    longitude: float | None = None
+    location_display_name: str | None = None
+
+    # House-type inference (LLM-based probability distribution)
+    house_type_probability: dict[str, float] | None = None
+    house_type_reasoning: str | None = None
+
+    # Solar potential (PVGIS)
+    assumed_system_kwp: float | None = None
+    solar_potential_kwh_year: int | None = None
+    solar_specific_yield_kwh_per_kwp: float | None = None
+    solar_optimal_tilt_deg: float | None = None
+    solar_optimal_azimuth_deg: float | None = None
+    solar_monthly_kwh: list[float] = []
+    solar_notes: str | None = None
+
+    # Electricity prices (SMARD wholesale + retail estimate)
+    wholesale_price_eur_mwh_avg: float | None = None
+    wholesale_price_eur_mwh_latest: float | None = None
+    local_electricity_price_eur_kwh: float | None = None  # retail estimate
+    electricity_price_notes: str | None = None
+
+    # Heating (LLM inference from house + heating type + build year)
+    current_heating_cost_eur_year: int | None = None
+    heating_cost_notes: str | None = None
+
+    # Synthesized optimal bundle (LLM — solar + battery + HP + wallbox)
+    optimal_bundle: list[ProductRecommendation] = []
+    optimal_bundle_rationale: str | None = None
+    optimal_bundle_total_cost_eur: int | None = None
+
     # ── Strategy fields ─────────────────────────────────────────
     positioning: str | None = None
     value_proposition: str | None = None
@@ -88,6 +123,14 @@ class SalesData(BaseModel):
 
     def is_research_complete(self) -> bool:
         return bool(self.regional_incentives or self.market_trends)
+
+    def is_analysis_complete(self) -> bool:
+        """Analysis is complete once we have solar + price + bundle inferred."""
+        return bool(
+            self.solar_potential_kwh_year is not None
+            and self.local_electricity_price_eur_kwh is not None
+            and self.optimal_bundle
+        )
 
     def is_strategy_complete(self) -> bool:
         return bool(self.value_proposition and self.key_messages)
