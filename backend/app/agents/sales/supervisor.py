@@ -12,6 +12,7 @@ PHASE_AGENT_MAP: dict[SalesPhase, str] = {
     SalesPhase.DATA_GATHERING: "data_gathering",
     SalesPhase.RESEARCH: "research",
     SalesPhase.ANALYSIS: "analysis",
+    SalesPhase.FINANCIAL: "financial",
     SalesPhase.STRATEGY: "strategy",
     SalesPhase.DELIVERABLE: "pitch_deck",
 }
@@ -28,12 +29,20 @@ HANDOFF_PROMPTS: dict[SalesPhase, str] = {
         "Market research is complete. "
         "Run the data analysis: geocode the customer, pull PVGIS "
         "solar yield, fetch SMARD wholesale prices, and infer house "
-        "type, heating costs, optimal product bundle, and financing."
+        "type, heating costs, and 3 bundle tiers (Starter / Recommended / "
+        "Full Independence)."
+    ),
+    SalesPhase.FINANCIAL: (
+        "Analysis is complete with solar yield, retail price, and "
+        "bundle tiers inferred. Now run the financial pipeline: "
+        "apply KfW/BEG/BAFA subsidies per component, build cash / "
+        "subsidy+cash / subsidy+financing scenarios for each tier, "
+        "and flag age-based suitability alerts."
     ),
     SalesPhase.STRATEGY: (
-        "Analysis is complete with solar yield, retail price, and "
-        "bundle inferred. Propose a personalized sales strategy for "
-        "this customer grounded in those numbers."
+        "Financial scenarios are ready. Propose a personalized sales "
+        "strategy for this customer grounded in the tiered bundles, "
+        "subsidies, and financing scenarios."
     ),
     SalesPhase.DELIVERABLE: (
         "The sales strategy has been finalized. "
@@ -111,6 +120,11 @@ class SalesSupervisor(AgentOrchestrator):
         if (
             sales_data.phase == SalesPhase.ANALYSIS
             and sales_data.is_analysis_complete()
+        ):
+            return SalesPhase.FINANCIAL
+        if (
+            sales_data.phase == SalesPhase.FINANCIAL
+            and sales_data.is_financial_complete()
         ):
             return SalesPhase.STRATEGY
         if (

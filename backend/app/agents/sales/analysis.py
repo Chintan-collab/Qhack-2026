@@ -27,6 +27,7 @@ from app.agents.base.agent import BaseAgent
 from app.agents.base.llm import chat_completion
 from app.agents.base.types import AgentContext, AgentMessage, MessageRole
 from app.agents.sales.schemas import (
+    BundleTier,
     ProductRecommendation,
     SalesData,
     SalesPhase,
@@ -84,20 +85,75 @@ Values must sum to ~1.0.
 heating_type, house_type, build_year, household_size. Provide a short \
 reasoning string explaining the estimate.
 
-3. **optimal_bundle** — the best combination of products for this customer. \
-Use the solar yield from PVGIS, the retail electricity price, and the \
-customer profile to pick 2-5 items from: solar PV, battery storage, heat \
-pump, wallbox / EV charger, energy management system. Give each item a \
-name, short description, rough price range in euros, and 2-3 key benefits. \
-Also produce a bundle_rationale string and a bundle_total_cost_eur integer.
+3. **bundle_tiers** — EXACTLY 3 tiered offer packages for this customer, \
+in this order:
 
-4. **financing_options** — 2-4 realistic financing paths tailored to the \
-customer's financial_profile and the bundle total cost. Use German-market \
-options where possible (KfW 270/442, installer leasing, cash discount, etc.).
+   • **Starter** — the lowest-ambition option. Usually a single product \
+that addresses the customer's primary pain point (e.g. just the heat pump \
+if their concern is rising gas prices). Lowest capex.
+
+   • **Recommended** — the sweet-spot combination that maximizes savings \
+per euro invested for THIS customer. Typically 2-3 products.
+
+   • **Full Independence** — the full package (solar + battery + heat pump \
++ wallbox if applicable) that maximizes energy independence. Highest capex.
+
+   For each tier, provide:
+     - name (exactly "Starter" / "Recommended" / "Full Independence")
+     - items: 1-5 products (name, description, estimated_price_eur as a \
+range like "€8,000–€12,000", key_benefits list)
+     - upfront_cost_eur (integer, midpoint of the price range)
+     - annual_savings_eur (integer, grounded in solar kWh × retail price + \
+heating cost reduction)
+     - annual_co2_saved_kg (integer)
+     - energy_independence_pct (0..100, how much of yearly energy demand \
+the package covers)
+     - payback_years (float)
+     - narrative: the causal story. Example: "Customer is replacing oil \
+heating → electricity demand rises ~4,000 kWh/year → solar + battery \
+covers 70% of that demand → payback in 9 years."
+
+4. **financing_options** — a short free-text list (the structured \
+FinancingAgent builds the real scenarios downstream; this is just a hint).
 
 Call `store_analysis` once with ALL of these values. Do not ask questions — \
 you have all the context you need. Be concise and grounded in the numbers."""
 
+
+_PRODUCT_ITEM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "estimated_price_eur": {
+            "type": "string",
+            "description": "Price range like '€8,000–€12,000'",
+        },
+        "key_benefits": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+    "required": ["name"],
+}
+
+_BUNDLE_TIER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Exactly 'Starter', 'Recommended', or 'Full Independence'",
+        },
+        "items": {"type": "array", "items": _PRODUCT_ITEM_SCHEMA},
+        "upfront_cost_eur": {"type": "integer"},
+        "annual_savings_eur": {"type": "integer"},
+        "annual_co2_saved_kg": {"type": "integer"},
+        "energy_independence_pct": {"type": "integer"},
+        "payback_years": {"type": "number"},
+        "narrative": {"type": "string"},
+    },
+    "required": ["name", "items", "upfront_cost_eur", "annual_savings_eur"],
+}
 
 STORE_ANALYSIS_TOOL = {
     "name": "store_analysis",
@@ -115,24 +171,13 @@ STORE_ANALYSIS_TOOL = {
             "house_type_reasoning": {"type": "string"},
             "current_heating_cost_eur_year": {"type": "integer"},
             "heating_cost_notes": {"type": "string"},
-            "optimal_bundle": {
+            "bundle_tiers": {
                 "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "description": {"type": "string"},
-                        "estimated_price_eur": {"type": "string"},
-                        "key_benefits": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                        },
-                    },
-                    "required": ["name"],
-                },
+                "description": (
+                    "Exactly 3 tiers: Starter, Recommended, Full Independence"
+                ),
+                "items": _BUNDLE_TIER_SCHEMA,
             },
-            "optimal_bundle_rationale": {"type": "string"},
-            "optimal_bundle_total_cost_eur": {"type": "integer"},
             "financing_options": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -140,7 +185,7 @@ STORE_ANALYSIS_TOOL = {
         },
         "required": [
             "house_type_probability",
-            "optimal_bundle",
+            "bundle_tiers",
             "financing_options",
         ],
     },
@@ -333,33 +378,68 @@ def _apply_llm_output(data: SalesData, tool_input: dict[str, Any]) -> None:
     if tool_input.get("heating_cost_notes"):
         data.heating_cost_notes = str(tool_input["heating_cost_notes"])
 
-    bundle_raw = tool_input.get("optimal_bundle") or []
-    bundle: list[ProductRecommendation] = []
-    for item in bundle_raw:
-        if not isinstance(item, dict) or not item.get("name"):
+    # Parse bundle_tiers (3 tiers expected)
+    tiers_raw = tool_input.get("bundle_tiers") or []
+    tiers: list[BundleTier] = []
+    for tier in tiers_raw:
+        if not isinstance(tier, dict) or not tier.get("name"):
             continue
-        bundle.append(
-            ProductRecommendation(
-                name=str(item["name"]),
-                description=str(item.get("description", "")),
-                estimated_price_eur=str(item.get("estimated_price_eur", "")),
-                key_benefits=[
-                    str(b) for b in (item.get("key_benefits") or []) if b
-                ],
+        items: list[ProductRecommendation] = []
+        for item in tier.get("items") or []:
+            if not isinstance(item, dict) or not item.get("name"):
+                continue
+            items.append(
+                ProductRecommendation(
+                    name=str(item["name"]),
+                    description=str(item.get("description", "")),
+                    estimated_price_eur=str(item.get("estimated_price_eur", "")),
+                    key_benefits=[
+                        str(b) for b in (item.get("key_benefits") or []) if b
+                    ],
+                )
+            )
+        try:
+            upfront = int(tier.get("upfront_cost_eur") or 0)
+        except (TypeError, ValueError):
+            upfront = 0
+        try:
+            savings = int(tier.get("annual_savings_eur") or 0)
+        except (TypeError, ValueError):
+            savings = 0
+        try:
+            co2 = int(tier.get("annual_co2_saved_kg") or 0)
+        except (TypeError, ValueError):
+            co2 = 0
+        try:
+            indep = int(tier.get("energy_independence_pct") or 0)
+        except (TypeError, ValueError):
+            indep = 0
+        try:
+            payback = float(tier.get("payback_years") or 0.0)
+        except (TypeError, ValueError):
+            payback = 0.0
+        tiers.append(
+            BundleTier(
+                name=str(tier["name"]),
+                items=items,
+                upfront_cost_eur=upfront,
+                annual_savings_eur=savings,
+                annual_co2_saved_kg=co2,
+                energy_independence_pct=max(0, min(100, indep)),
+                payback_years=payback,
+                narrative=str(tier.get("narrative", "")),
             )
         )
-    if bundle:
-        data.optimal_bundle = bundle
-
-    if tool_input.get("optimal_bundle_rationale"):
-        data.optimal_bundle_rationale = str(tool_input["optimal_bundle_rationale"])
-    if tool_input.get("optimal_bundle_total_cost_eur") is not None:
-        try:
-            data.optimal_bundle_total_cost_eur = int(
-                tool_input["optimal_bundle_total_cost_eur"]
-            )
-        except (TypeError, ValueError):
-            pass
+    if tiers:
+        data.bundle_tiers = tiers
+        # Backward compat: mirror the "Recommended" tier (or first tier) into
+        # optimal_bundle so existing downstream code keeps working.
+        recommended = next(
+            (t for t in tiers if "recommended" in t.name.lower()), tiers[0]
+        )
+        data.optimal_bundle = recommended.items
+        data.optimal_bundle_total_cost_eur = recommended.upfront_cost_eur
+        data.optimal_bundle_rationale = recommended.narrative
 
     fin_raw = tool_input.get("financing_options") or []
     if fin_raw:
@@ -410,7 +490,21 @@ def _build_summary(data: SalesData, api_notes: list[str]) -> str:
         if data.heating_cost_notes:
             lines.append(f"> {data.heating_cost_notes}")
 
-    if data.optimal_bundle:
+    if data.bundle_tiers:
+        lines.append("### Offer packages (3 tiers)")
+        for tier in data.bundle_tiers:
+            lines.append(
+                f"\n**{tier.name}** — €{tier.upfront_cost_eur:,} upfront"
+                f" • ~€{tier.annual_savings_eur:,}/yr savings"
+                f" • payback ~{tier.payback_years:.1f} yr"
+                f" • energy indep. ~{tier.energy_independence_pct}%"
+            )
+            for item in tier.items:
+                price = f" — {item.estimated_price_eur}" if item.estimated_price_eur else ""
+                lines.append(f"  - {item.name}{price}")
+            if tier.narrative:
+                lines.append(f"  > {tier.narrative}")
+    elif data.optimal_bundle:
         lines.append("**Optimal product bundle:**")
         for item in data.optimal_bundle:
             price = f" — {item.estimated_price_eur}" if item.estimated_price_eur else ""
@@ -423,7 +517,7 @@ def _build_summary(data: SalesData, api_notes: list[str]) -> str:
             lines.append(f"> {data.optimal_bundle_rationale}")
 
     if data.financing_options:
-        lines.append("**Financing options:**")
+        lines.append("\n**Initial financing hints (FinancialAgent will refine):**")
         for opt in data.financing_options:
             lines.append(f"- {opt}")
 
@@ -432,7 +526,7 @@ def _build_summary(data: SalesData, api_notes: list[str]) -> str:
         for note in api_notes:
             lines.append(f"- {note}")
 
-    lines.append("\nReady for the strategy phase.")
+    lines.append("\nReady for the financial phase.")
     return "\n".join(lines)
 
 
@@ -517,7 +611,7 @@ class AnalysisAgent(BaseAgent):
 
         # Advance phase once we have the minimum viable outputs.
         if sales_data.is_analysis_complete():
-            sales_data.phase = SalesPhase.STRATEGY
+            sales_data.phase = SalesPhase.FINANCIAL
 
         _save_sales_data(context, sales_data)
 

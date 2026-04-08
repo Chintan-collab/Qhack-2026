@@ -47,6 +47,13 @@ EXTRACT_TOOL = {
         "type": "object",
         "properties": {
             "customer_name": {"type": "string"},
+            "date_of_birth": {
+                "type": "string",
+                "description": (
+                    "Customer date of birth in ISO format YYYY-MM-DD. "
+                    "Used downstream to flag age-vs-financing-tenor risk."
+                ),
+            },
             "postal_code": {"type": "string"},
             "city": {"type": "string"},
             "product_interest": {"type": "string", "description": "Solar, Heat pump, Wallbox, Battery, or combo"},
@@ -103,8 +110,8 @@ def _build_messages(context: AgentContext) -> list[dict]:
 
 def _apply_extraction(sales_data: SalesData, tool_input: dict) -> SalesData:
     for field in [
-        "customer_name", "postal_code", "city", "product_interest",
-        "house_type", "roof_orientation", "heating_type",
+        "customer_name", "date_of_birth", "postal_code", "city",
+        "product_interest", "house_type", "roof_orientation", "heating_type",
         "existing_assets", "financial_profile", "notes",
     ]:
         if tool_input.get(field):

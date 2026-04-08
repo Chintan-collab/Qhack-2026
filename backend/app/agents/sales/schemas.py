@@ -1,12 +1,26 @@
+from datetime import date, datetime
 from enum import Enum
 
 from pydantic import BaseModel
+
+
+def _age_from_dob(dob: str | None) -> int | None:
+    """Compute age in whole years from an ISO 'YYYY-MM-DD' DOB string."""
+    if not dob:
+        return None
+    try:
+        d = datetime.strptime(dob.strip(), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+    today = date.today()
+    return today.year - d.year - ((today.month, today.day) < (d.month, d.day))
 
 
 class SalesPhase(str, Enum):
     DATA_GATHERING = "data_gathering"
     RESEARCH = "research"
     ANALYSIS = "analysis"
+    FINANCIAL = "financial"
     STRATEGY = "strategy"
     DELIVERABLE = "deliverable"
     COMPLETE = "complete"
@@ -33,6 +47,53 @@ class ObjectionResponse(BaseModel):
     response: str
 
 
+class BundleTier(BaseModel):
+    """One of the 3 tiered offer packages (Pillar 1 of the challenge)."""
+
+    name: str  # "Starter" | "Recommended" | "Full Independence"
+    items: list[ProductRecommendation] = []
+    upfront_cost_eur: int = 0
+    annual_savings_eur: int = 0
+    annual_co2_saved_kg: int = 0
+    energy_independence_pct: int = 0  # 0..100
+    payback_years: float = 0.0
+    narrative: str = ""  # causal story: "HP → more electricity → solar covers it → ..."
+
+
+class SubsidyLine(BaseModel):
+    """One applied subsidy for one component in the bundle."""
+
+    program: str  # "KfW 270", "BEG EM / BAFA", "KfW 458", ...
+    component: str  # "Solar PV", "Battery", "Heat pump", "Wallbox"
+    kind: str  # "grant" | "loan"
+    amount_eur: int  # grant value OR eligible loan principal
+    interest_rate_pct: float | None = None  # only for loans
+    max_term_years: int | None = None  # only for loans
+    eligibility_notes: str = ""
+
+
+class FinancingScenario(BaseModel):
+    """One payment path for one bundle tier.
+
+    The sales rep sees these side-by-side so they can steer the
+    conversation based on the customer's cash/risk profile.
+    """
+
+    tier_name: str  # which BundleTier this belongs to
+    name: str  # "Cash", "Subsidy + Cash", "Subsidy + KfW 270 financing"
+    upfront_eur: int  # what the customer pays on day 1
+    financed_eur: int = 0  # principal financed (0 for pure cash)
+    monthly_payment_eur: int = 0
+    interest_rate_pct: float | None = None
+    term_years: int | None = None
+    total_cost_eur: int = 0  # upfront + all monthly payments
+    total_savings_10y_eur: int = 0  # energy savings − payments (10y)
+    total_savings_20y_eur: int = 0  # 20y
+    age_suitability_tier: str = "green"  # "green" | "yellow" | "red"
+    age_alerts: list[str] = []
+    narrative: str = ""
+
+
 class SalesData(BaseModel):
     """Structured data accumulated by agents throughout the sales pipeline.
 
@@ -45,6 +106,7 @@ class SalesData(BaseModel):
 
     # ── Customer & property info (data gathering) ───────────────
     customer_name: str | None = None
+    date_of_birth: str | None = None  # ISO "YYYY-MM-DD"
     postal_code: str | None = None
     city: str | None = None
     product_interest: str | None = None  # "Solar", "Heat pump", "Wallbox", etc.
@@ -58,6 +120,11 @@ class SalesData(BaseModel):
     existing_assets: str | None = None  # "None", "Solar 5 kWp", etc.
     financial_profile: str | None = None
     notes: str | None = None
+
+    @property
+    def age(self) -> int | None:
+        """Derived age in years from date_of_birth (never persisted)."""
+        return _age_from_dob(self.date_of_birth)
 
     # ── Product recommendations ─────────────────────────────────
     recommendations: list[ProductRecommendation] = []
@@ -103,6 +170,27 @@ class SalesData(BaseModel):
     optimal_bundle_rationale: str | None = None
     optimal_bundle_total_cost_eur: int | None = None
 
+    # ── Tiered bundles (Pillar 1 of challenge) ──────────────────
+    # Starter / Recommended / Full Independence. AnalysisAgent
+    # produces these; FinancialAgent consumes them to build scenarios.
+    bundle_tiers: list[BundleTier] = []
+
+    # ── Financial pipeline outputs (Pillar 2 of challenge) ──────
+    subsidy_breakdown: list[SubsidyLine] = []
+    financing_scenarios: list[FinancingScenario] = []
+    affordability_narrative: str | None = None
+    effective_out_of_pocket_eur: int | None = None
+    recommended_scenario_tier: str | None = None  # "Starter" | "Recommended" | "Full Independence"
+    recommended_scenario_name: str | None = None
+
+    # ── Age-based financing suitability (consumed by FinancialAgent) ────
+    # Tier: "green" (broadly normal), "yellow" (needs review),
+    # "red" (strong mismatch). Never an automatic decline — this is a
+    # sales-coach alert, not an underwriting decision.
+    financing_suitability_tier: str | None = None
+    financing_risk_alerts: list[str] = []
+    alternative_financing_paths: list[str] = []
+
     # ── Strategy fields ─────────────────────────────────────────
     positioning: str | None = None
     value_proposition: str | None = None
@@ -129,8 +217,12 @@ class SalesData(BaseModel):
         return bool(
             self.solar_potential_kwh_year is not None
             and self.local_electricity_price_eur_kwh is not None
-            and self.optimal_bundle
+            and (self.bundle_tiers or self.optimal_bundle)
         )
+
+    def is_financial_complete(self) -> bool:
+        """Financial is complete once we have scenarios for each tier."""
+        return bool(self.financing_scenarios)
 
     def is_strategy_complete(self) -> bool:
         return bool(self.value_proposition and self.key_messages)
