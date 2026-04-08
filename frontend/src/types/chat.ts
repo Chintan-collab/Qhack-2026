@@ -25,6 +25,7 @@ export interface Conversation {
 
 export interface ChatRequest {
   conversationId?: string;
+  projectId?: string;
   message: string;
   agentId?: string;
 }
@@ -37,8 +38,22 @@ export interface ChatResponse {
 }
 
 export interface StreamEvent {
-  type: "agent_selected" | "message" | "tool_call" | "thinking" | "done" | "error";
+  type:
+    | "agent_selected"
+    | "message"
+    | "tool_call"
+    | "thinking"
+    | "done"
+    | "error"
+    | "phase_changed"
+    | "data_extracted"
+    | "search_result"
+    | "deliverable_ready"
+    | "project_created";
   content?: string;
   agent?: string;
+  phase?: string;
+  project_id?: string;
+  deliverable_id?: string;
   metadata?: Record<string, unknown>;
 }

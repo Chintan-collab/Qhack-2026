@@ -1,5 +1,7 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.session import get_db
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
 
@@ -7,9 +9,11 @@ router = APIRouter()
 
 
 @router.post("/", response_model=ChatResponse)
-async def send_message(request: ChatRequest) -> ChatResponse:
+async def send_message(
+    request: ChatRequest, db: AsyncSession = Depends(get_db)
+) -> ChatResponse:
     """Send a message and get an agent-orchestrated response."""
-    service = ChatService()
+    service = ChatService(db=db)
     return await service.process_message(request)
 
 
