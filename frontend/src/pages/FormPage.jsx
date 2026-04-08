@@ -7,24 +7,31 @@ import {
   Users,
   Zap,
   Wallet,
-  BatteryCharging,
-  MessageCircle,
-  X,
   ArrowRight,
-  Target,
+  X,
+  Home,
+  Calendar,
+  Flame,
+  FileText,
 } from "lucide-react";
 
 const leads = [
   {
     id: 1,
-    name: "Lukas Schneider",
-    area: "Mannheim",
-    postcode: "68169",
-    household_size: 3,
-    annual_consumption_kwh: 4200,
-    budget_band: "medium",
-    product_interest: "solar_battery",
-    customer_goal: "Reduce monthly bills and improve energy independence",
+    name: "Markus Weber",
+    postal_code: "74238",
+    city: "Krautheim",
+    product_interest: "Heat pump",
+    household_size: 4,
+    house_type: "Detached",
+    build_year: 1985,
+    roof_orientation: "South",
+    electricity_kwh_year: 4500,
+    heating_type: "Gas",
+    monthly_energy_bill_eur: 180,
+    existing_assets: "None",
+    financial_profile: "Mid-income, open to financing",
+    notes: "Concerned about rising gas prices",
   },
   {
     id: 2,
@@ -52,15 +59,33 @@ const leads = [
 
 export default function FormPage() {
   const navigate = useNavigate();
-  const [chatOpen, setChatOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState(leads[0]);
+  const [leadDialogOpen, setLeadDialogOpen] = useState(false);
 
   const formatProduct = (value) => {
     if (!value) return "—";
+
     return value
-      .split("_")
+      .replace(/_/g, " ")
+      .split(" ")
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" + ");
+      .join(" ");
+  };
+
+  const getLeadLocation = (lead) => lead.city || lead.area || "—";
+
+  const getLeadPostalCode = (lead) => lead.postal_code || lead.postcode || "—";
+
+  const getLeadUsage = (lead) =>
+    lead.electricity_kwh_year || lead.annual_consumption_kwh || "—";
+
+  const getLeadBudget = (lead) =>
+    lead.financial_profile || lead.budget_band || "—";
+
+  const getLeadNote = (lead) => lead.notes || lead.customer_goal || "—";
+
+  const handleLeadOpen = (leadId) => {
+    setLeadDialogOpen(false);
+    navigate(`/lead/${leadId}`);
   };
 
   return (
@@ -86,42 +111,32 @@ export default function FormPage() {
               <p className="dashboard-kicker">Lead Qualification Workspace</p>
               <h1>Sales Dashboard</h1>
               <p className="dashboard-subtitle">
-                Select a lead and review their profile before generating a sales report.
+                Select a lead card to open the customer details page.
               </p>
             </div>
           </div>
-
-          <button
-            className="primary-btn dashboard-header-btn"
-            onClick={() => navigate(`/lead/${selectedLead.id}`)}
-          >
-            Open Lead Page
-            <ArrowRight size={18} />
-          </button>
         </motion.div>
 
         <motion.div
-          className="dashboard-main-layout"
+          className="dashboard-main-layout single-column-layout"
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.08 }}
         >
-          <div className="dashboard-left">
+          <div className="dashboard-left full-width-section">
             <div className="dashboard-section-header">
               <h2>Available Leads</h2>
               <span>{leads.length} profiles</span>
             </div>
 
-            <div className="dashboard-cards-grid">
+            <div className="dashboard-cards-grid horizontal-cards-grid">
               {leads.map((lead) => (
                 <motion.button
                   key={lead.id}
-                  className={`lead-dashboard-card ${
-                    selectedLead.id === lead.id ? "lead-dashboard-card-active" : ""
-                  }`}
+                  className="lead-dashboard-card lead-dashboard-card-horizontal"
                   whileHover={{ y: -4 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedLead(lead)}
+                  onClick={() => navigate(`/lead/${lead.id}`)}
                 >
                   <div className="lead-card-top">
                     <div>
@@ -131,166 +146,190 @@ export default function FormPage() {
                     <span className="lead-status-badge">Active Lead</span>
                   </div>
 
-                  <div className="lead-card-body">
+                  <div className="lead-card-body horizontal-card-body">
                     <div className="lead-card-row">
-                      <span><MapPin size={15} /> Area</span>
-                      <strong>{lead.area}</strong>
+                      <span>
+                        <MapPin size={15} /> City
+                      </span>
+                      <strong>{getLeadLocation(lead)}</strong>
                     </div>
 
                     <div className="lead-card-row">
-                      <span><Users size={15} /> Household</span>
-                      <strong>{lead.household_size} people</strong>
+                      <span>
+                        <MapPin size={15} /> Postal Code
+                      </span>
+                      <strong>{getLeadPostalCode(lead)}</strong>
                     </div>
 
                     <div className="lead-card-row">
-                      <span><Zap size={15} /> Usage</span>
-                      <strong>{lead.annual_consumption_kwh} kWh</strong>
+                      <span>
+                        <Users size={15} /> Household
+                      </span>
+                      <strong>{lead.household_size || "—"} people</strong>
                     </div>
 
                     <div className="lead-card-row">
-                      <span><Wallet size={15} /> Budget</span>
-                      <strong>{lead.budget_band}</strong>
+                      <span>
+                        <Zap size={15} /> Electricity
+                      </span>
+                      <strong>{getLeadUsage(lead)} kWh</strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <Wallet size={15} /> Budget
+                      </span>
+                      <strong>{getLeadBudget(lead)}</strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <Home size={15} /> House Type
+                      </span>
+                      <strong>{lead.house_type || "—"}</strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <Calendar size={15} /> Build Year
+                      </span>
+                      <strong>{lead.build_year || "—"}</strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <MapPin size={15} /> Roof Orientation
+                      </span>
+                      <strong>{lead.roof_orientation || "—"}</strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <Flame size={15} /> Heating Type
+                      </span>
+                      <strong>{lead.heating_type || "—"}</strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <Wallet size={15} /> Monthly Bill
+                      </span>
+                      <strong>
+                        {lead.monthly_energy_bill_eur
+                          ? `€${lead.monthly_energy_bill_eur}`
+                          : "—"}
+                      </strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <FileText size={15} /> Existing Assets
+                      </span>
+                      <strong>{lead.existing_assets || "—"}</strong>
+                    </div>
+
+                    <div className="lead-card-row lead-card-row-full">
+                      <span>
+                        <FileText size={15} /> Notes
+                      </span>
+                      <strong>{getLeadNote(lead)}</strong>
                     </div>
                   </div>
                 </motion.button>
               ))}
             </div>
-          </div>
 
-          <div className="dashboard-right">
-            <div className="lead-preview-card">
-              <div className="lead-preview-header">
-                <div>
-                  <p className="dashboard-kicker">Selected Lead Preview</p>
-                  <h2>{selectedLead.name}</h2>
-                </div>
-                <span className="lead-preview-tag">
-                  {formatProduct(selectedLead.product_interest)}
-                </span>
-              </div>
-
-              <div className="lead-preview-grid">
-                <div className="lead-preview-item">
-                  <span>Area</span>
-                  <p>{selectedLead.area}</p>
-                </div>
-
-                <div className="lead-preview-item">
-                  <span>Postcode</span>
-                  <p>{selectedLead.postcode}</p>
-                </div>
-
-                <div className="lead-preview-item">
-                  <span>Household Size</span>
-                  <p>{selectedLead.household_size}</p>
-                </div>
-
-                <div className="lead-preview-item">
-                  <span>Consumption</span>
-                  <p>{selectedLead.annual_consumption_kwh} kWh</p>
-                </div>
-
-                <div className="lead-preview-item">
-                  <span>Budget Band</span>
-                  <p>{selectedLead.budget_band}</p>
-                </div>
-
-                <div className="lead-preview-item">
-                  <span>Product</span>
-                  <p>{formatProduct(selectedLead.product_interest)}</p>
-                </div>
-
-                <div className="lead-preview-item full-width">
-                  <span>Customer Goal</span>
-                  <p>{selectedLead.customer_goal}</p>
-                </div>
-              </div>
-
-              <div className="lead-preview-actions">
-                <button
-                  className="secondary-btn"
-                  onClick={() => navigate(`/lead/${selectedLead.id}`)}
-                >
-                  View Details
-                </button>
-
-                <button
-                  className="primary-btn"
-                  onClick={() => navigate(`/lead/${selectedLead.id}`)}
-                >
-                  Continue
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            </div>
-
-            <div className="lead-helper-card">
-              <div className="lead-helper-title">
-                <BatteryCharging size={18} />
-                <h3>AI Assistant Hint</h3>
-              </div>
-              <p>
-                Use the selected lead preview to review the customer profile first.
-                Then open the lead page to work with chat assistance for that specific case.
-              </p>
+            <div className="dashboard-bottom-action">
+              <button
+                className="primary-btn"
+                onClick={() => navigate("/chat")}
+              >
+                Open Lead Selector
+                <ArrowRight size={18} />
+              </button>
             </div>
           </div>
         </motion.div>
       </div>
 
-      <motion.button
-        className="dashboard-chat-fab"
-        onClick={() => setChatOpen(true)}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.96 }}
-      >
-        <MessageCircle size={22} />
-      </motion.button>
-
       <AnimatePresence>
-        {chatOpen && (
+        {leadDialogOpen && (
           <motion.div
-            className="dashboard-chat-modal"
+            className="lead-dialog-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={() => setLeadDialogOpen(false)}
           >
             <motion.div
-              className="dashboard-chat-box"
-              initial={{ opacity: 0, y: 18, scale: 0.97 }}
+              className="lead-dialog-box"
+              initial={{ opacity: 0, y: 20, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 14, scale: 0.98 }}
+              exit={{ opacity: 0, y: 14, scale: 0.96 }}
+              transition={{ duration: 0.25 }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="dashboard-chat-header">
+              <div className="lead-dialog-header">
                 <div>
-                  <h3>Lead Navigator</h3>
-                  <p>Choose a customer profile to continue</p>
+                  <p className="dashboard-kicker">Choose Lead</p>
+                  <h3>Select a customer profile</h3>
                 </div>
 
                 <button
-                  className="chatbot-close-btn"
-                  onClick={() => setChatOpen(false)}
+                  className="lead-dialog-close-btn"
+                  onClick={() => setLeadDialogOpen(false)}
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="dashboard-chat-lead-list">
+              <div className="lead-dialog-list">
                 {leads.map((lead) => (
-                  <button
+                  <motion.button
                     key={lead.id}
-                    className="dashboard-chat-lead-item"
-                    onClick={() => {
-                      setChatOpen(false);
-                      navigate(`/lead/${lead.id}`);
-                    }}
+                    className="lead-dialog-card"
+                    whileHover={{ y: -3 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleLeadOpen(lead.id)}
                   >
-                    <div>
-                      <h4>{lead.name}</h4>
-                      <p>{formatProduct(lead.product_interest)}</p>
+                    <div className="lead-dialog-card-top">
+                      <div>
+                        <h4>{lead.name}</h4>
+                        <p>{formatProduct(lead.product_interest)}</p>
+                      </div>
+                      <ArrowRight size={18} />
                     </div>
-                    <ArrowRight size={18} />
-                  </button>
+
+                    <div className="lead-dialog-card-body">
+                      <div className="lead-card-row">
+                        <span>
+                          <MapPin size={15} /> City
+                        </span>
+                        <strong>{getLeadLocation(lead)}</strong>
+                      </div>
+
+                      <div className="lead-card-row">
+                        <span>
+                          <Users size={15} /> Household
+                        </span>
+                        <strong>{lead.household_size || "—"} people</strong>
+                      </div>
+
+                      <div className="lead-card-row">
+                        <span>
+                          <Zap size={15} /> Usage
+                        </span>
+                        <strong>{getLeadUsage(lead)} kWh</strong>
+                      </div>
+
+                      <div className="lead-card-row">
+                        <span>
+                          <Wallet size={15} /> Budget
+                        </span>
+                        <strong>{getLeadBudget(lead)}</strong>
+                      </div>
+                    </div>
+                  </motion.button>
                 ))}
               </div>
             </motion.div>
