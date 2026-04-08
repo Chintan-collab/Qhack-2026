@@ -5,6 +5,7 @@ from app.api.routes.agents import router as agents_router
 from app.api.routes.conversations import router as conversations_router
 from app.api.routes.deliverables import router as deliverables_router
 from app.api.routes.projects import router as projects_router
+from app.api.routes.leads import router as leads_router
 from app.api.routes.voice import router as voice_router
 
 router = APIRouter()
@@ -25,4 +26,7 @@ router.include_router(
 )
 router.include_router(
     voice_router, prefix="/voice", tags=["voice"]
+)
+router.include_router(
+    leads_router, prefix="/leads", tags=["leads"]
 )

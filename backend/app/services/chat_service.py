@@ -116,19 +116,33 @@ class ChatService:
             return
 
         sales_data = SalesData(
-            company_name=project.company_name,
-            company_description=project.company_description,
-            industry=project.industry,
-            target_market=project.target_market,
+            customer_name=project.customer_name,
+            postal_code=project.postal_code,
+            city=project.city,
+            product_interest=project.product_interest,
+            household_size=project.household_size,
+            house_type=project.house_type,
+            build_year=project.build_year,
+            roof_orientation=project.roof_orientation,
+            electricity_kwh_year=project.electricity_kwh_year,
+            heating_type=project.heating_type,
+            monthly_energy_bill_eur=project.monthly_energy_bill_eur,
+            existing_assets=project.existing_assets,
+            financial_profile=project.financial_profile,
+            notes=project.notes,
+            recommendations=project.recommendations or [],
             competitors=project.competitors or [],
         )
-        if project.products:
-            sales_data.products = project.products
 
         # Restore research / strategy data if present
         rd = project.research_data or {}
         sales_data.market_trends = rd.get("market_trends", [])
-        sales_data.market_size = rd.get("market_size")
+        sales_data.regional_incentives = rd.get(
+            "regional_incentives", []
+        )
+        sales_data.energy_price_outlook = rd.get(
+            "energy_price_outlook"
+        )
         sales_data.industry_insights = rd.get(
             "industry_insights", []
         )
@@ -138,24 +152,24 @@ class ChatService:
         sales_data.value_proposition = sn.get("value_proposition")
         sales_data.key_messages = sn.get("key_messages", [])
         sales_data.objections = sn.get("objections", [])
-        sales_data.target_personas = sn.get("target_personas", [])
+        sales_data.savings_estimate = sn.get("savings_estimate")
+        sales_data.payback_period = sn.get("payback_period")
+        sales_data.financing_options = sn.get(
+            "financing_options", []
+        )
 
-        # Resume at the right phase based on project status
+        # Resume at the right phase
         phase_map = {
-            "gathering": SalesPhase.DATA_GATHERING,
             "data_gathering": SalesPhase.DATA_GATHERING,
             "research": SalesPhase.RESEARCH,
-            "researching": SalesPhase.RESEARCH,
             "strategy": SalesPhase.STRATEGY,
-            "strategizing": SalesPhase.STRATEGY,
             "deliverable": SalesPhase.DELIVERABLE,
             "complete": SalesPhase.COMPLETE,
         }
         sales_data.phase = phase_map.get(
-            project.status or "gathering",
+            project.status or "data_gathering",
             SalesPhase.DATA_GATHERING,
         )
-        # Override: if data is sufficient, skip ahead
         if (
             sales_data.phase == SalesPhase.DATA_GATHERING
             and sales_data.is_gathering_complete()
@@ -180,15 +194,21 @@ class ChatService:
         sd = SalesData(**raw) if isinstance(raw, dict) else raw
 
         project = Project(
-            name=sd.company_name or "Untitled Project",
-            company_name=sd.company_name,
-            company_description=sd.company_description,
-            industry=sd.industry,
-            target_market=sd.target_market,
-            products=[
-                p.model_dump() if hasattr(p, "model_dump") else p
-                for p in sd.products
-            ],
+            name=sd.customer_name or "Untitled Project",
+            customer_name=sd.customer_name,
+            postal_code=sd.postal_code,
+            city=sd.city,
+            product_interest=sd.product_interest,
+            household_size=sd.household_size,
+            house_type=sd.house_type,
+            build_year=sd.build_year,
+            roof_orientation=sd.roof_orientation,
+            electricity_kwh_year=sd.electricity_kwh_year,
+            heating_type=sd.heating_type,
+            monthly_energy_bill_eur=sd.monthly_energy_bill_eur,
+            existing_assets=sd.existing_assets,
+            financial_profile=sd.financial_profile,
+            notes=sd.notes,
             status=sd.phase.value,
         )
         self.db.add(project)
@@ -216,13 +236,23 @@ class ChatService:
         if not project:
             return
 
-        project.company_name = sd.company_name
-        project.company_description = sd.company_description
-        project.industry = sd.industry
-        project.target_market = sd.target_market
-        project.products = [
-            p.model_dump() if hasattr(p, "model_dump") else p
-            for p in sd.products
+        project.customer_name = sd.customer_name
+        project.postal_code = sd.postal_code
+        project.city = sd.city
+        project.product_interest = sd.product_interest
+        project.household_size = sd.household_size
+        project.house_type = sd.house_type
+        project.build_year = sd.build_year
+        project.roof_orientation = sd.roof_orientation
+        project.electricity_kwh_year = sd.electricity_kwh_year
+        project.heating_type = sd.heating_type
+        project.monthly_energy_bill_eur = sd.monthly_energy_bill_eur
+        project.existing_assets = sd.existing_assets
+        project.financial_profile = sd.financial_profile
+        project.notes = sd.notes
+        project.recommendations = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in sd.recommendations
         ]
         project.competitors = [
             c.model_dump() if hasattr(c, "model_dump") else c
@@ -230,7 +260,8 @@ class ChatService:
         ]
         project.research_data = {
             "market_trends": sd.market_trends,
-            "market_size": sd.market_size,
+            "regional_incentives": sd.regional_incentives,
+            "energy_price_outlook": sd.energy_price_outlook,
             "industry_insights": sd.industry_insights,
         }
         project.strategy_notes = {
@@ -241,7 +272,9 @@ class ChatService:
                 o.model_dump() if hasattr(o, "model_dump") else o
                 for o in sd.objections
             ],
-            "target_personas": sd.target_personas,
+            "savings_estimate": sd.savings_estimate,
+            "payback_period": sd.payback_period,
+            "financing_options": sd.financing_options,
         }
         project.status = sd.phase.value
         await self.db.commit()
@@ -265,9 +298,9 @@ class ChatService:
             project_id=project_id,
             title=(
                 context.shared_state.get("sales_data", {}).get(
-                    "company_name", ""
+                    "customer_name", ""
                 )
-                or "Sales"
+                or "Customer"
             )
             + " — Pitch Deck",
             content_markdown=deliverable_text,

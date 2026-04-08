@@ -1,12 +1,24 @@
-.PHONY: setup dev backend frontend lint test clean
+.PHONY: setup dev stop restart nuke backend frontend lint test clean
 
 # First-time setup
 setup:
 	bash infra/scripts/setup.sh
 
-# Run both backend + frontend
+# Run both backend + frontend (stops stale processes first)
 dev:
-	bash infra/scripts/dev.sh
+	bash dev.sh start
+
+# Stop all running dev processes
+stop:
+	bash dev.sh stop
+
+# Restart everything (stop + start)
+restart:
+	bash dev.sh restart
+
+# Nuke DB and restart fresh
+nuke:
+	bash dev.sh nuke
 
 # Run backend only
 backend:

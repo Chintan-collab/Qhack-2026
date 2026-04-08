@@ -15,35 +15,27 @@ from app.agents.sales.schemas import (
 )
 from app.core.config import settings
 
-SYSTEM_PROMPT = (
-    "You are a market research analyst. Given information "
-    "about a company and its products, conduct competitive "
-    "analysis and market research.\n\n"
-    "Use the `web_search` tool to find real-time data. "
-    "For each search:\n"
-    "1. Search for direct competitors\n"
-    "2. Find market trends and industry data\n"
-    "3. Analyze competitive positioning\n"
-    "4. Identify market size and growth\n\n"
-    "After searching, use `store_competitor` and "
-    "`store_market_trends` to save your findings.\n\n"
-    "When you have gathered enough intelligence "
-    "(at least 2-3 competitors and key trends), "
-    "STOP searching and present a clear summary of:\n"
-    "- Competitors found and their strengths/weaknesses\n"
-    "- Market trends and size\n"
-    "- Key insights for the sales strategy\n\n"
-    "End your summary by saying you are ready to move "
-    "to the strategy phase. Do NOT ask the user what "
-    "to search — you already have the company data."
-)
+SYSTEM_PROMPT = """\
+You are a market research analyst for a residential energy installer. \
+Given customer and property data, research the local energy market to \
+help the installer build a compelling pitch.
+
+Use the `web_search` tool to find:
+1. Regional subsidies, tax credits, and incentive programs (e.g. KfW, BAFA, \
+local municipality programs) for the customer's postal code area
+2. Current energy prices and outlook in Germany
+3. Competitor pricing for the products the customer is interested in
+4. Market trends in residential solar/heat pump/battery adoption
+
+After searching, use `store_research` to save your findings.
+
+When you have enough data (incentives + at least some market context), \
+present a clear summary and say you are ready for the strategy phase. \
+Do NOT ask the user what to search — you already have the customer data."""
 
 SEARCH_TOOL = {
     "name": "web_search",
-    "description": (
-        "Search the internet for market research, "
-        "competitor info, and industry trends"
-    ),
+    "description": "Search the internet for energy incentives, pricing, and market data",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -56,57 +48,44 @@ SEARCH_TOOL = {
     },
 }
 
-STORE_COMPETITOR_TOOL = {
-    "name": "store_competitor",
-    "description": "Store structured competitor information",
+STORE_RESEARCH_TOOL = {
+    "name": "store_research",
+    "description": "Store research findings",
     "input_schema": {
         "type": "object",
         "properties": {
-            "name": {"type": "string"},
-            "description": {"type": "string"},
-            "strengths": {
+            "regional_incentives": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Subsidies, tax credits, programs",
+            },
+            "energy_price_outlook": {
+                "type": "string",
+                "description": "Current and projected energy prices",
+            },
+            "market_trends": {
                 "type": "array",
                 "items": {"type": "string"},
             },
-            "weaknesses": {
-                "type": "array",
-                "items": {"type": "string"},
-            },
-            "market_share": {"type": "string"},
-        },
-        "required": ["name"],
-    },
-}
-
-STORE_TRENDS_TOOL = {
-    "name": "store_market_trends",
-    "description": (
-        "Store market trends and insights "
-        "discovered during research"
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "trends": {
-                "type": "array",
-                "items": {"type": "string"},
-            },
-            "market_size": {"type": "string"},
             "insights": {
                 "type": "array",
                 "items": {"type": "string"},
             },
+            "competitor_name": {"type": "string"},
+            "competitor_description": {"type": "string"},
+            "competitor_strengths": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "competitor_weaknesses": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
         },
     },
 }
 
-# No mark_research_complete tool — the supervisor detects
-# completion via is_research_complete() and auto-transitions.
-ALL_TOOLS = [
-    SEARCH_TOOL,
-    STORE_COMPETITOR_TOOL,
-    STORE_TRENDS_TOOL,
-]
+ALL_TOOLS = [SEARCH_TOOL, STORE_RESEARCH_TOOL]
 
 
 def _get_sales_data(context: AgentContext) -> SalesData:
@@ -126,7 +105,7 @@ def _save(context: AgentContext, data: SalesData) -> None:
 class ResearchAgent(BaseAgent):
     name: str = "research"
     description: str = (
-        "Performs competitive analysis and market research"
+        "Researches energy incentives, pricing, and market data"
     )
     system_prompt: str = SYSTEM_PROMPT
 
@@ -143,29 +122,28 @@ class ResearchAgent(BaseAgent):
 
         known = json.dumps(
             {
-                "company": sales_data.company_name,
-                "company_description": (
-                    sales_data.company_description
-                ),
-                "products": [
-                    p.model_dump() for p in sales_data.products
-                ],
-                "target_market": sales_data.target_market,
-                "industry": sales_data.industry,
-                "pain_points": sales_data.pain_points,
+                "customer": sales_data.customer_name,
+                "postal_code": sales_data.postal_code,
+                "city": sales_data.city,
+                "product_interest": sales_data.product_interest,
+                "house_type": sales_data.house_type,
+                "build_year": sales_data.build_year,
+                "heating_type": sales_data.heating_type,
+                "electricity_kwh_year": sales_data.electricity_kwh_year,
+                "monthly_bill": sales_data.monthly_energy_bill_eur,
+                "existing_assets": sales_data.existing_assets,
             },
             indent=2,
         )
         system = (
             self.system_prompt
-            + f"\n\nCompany data collected:\n{known}"
+            + f"\n\nCustomer data:\n{known}"
         )
 
         messages = [
             {"role": "user", "content": message.content}
         ]
 
-        # Multi-step agentic loop: LLM searches, stores, repeats
         all_text = ""
         for _ in range(settings.MAX_AGENT_STEPS):
             response = await chat_completion(
@@ -204,7 +182,9 @@ class ResearchAgent(BaseAgent):
             })
             messages.append({
                 "role": "user",
-                "content": f"Tool results: {json.dumps(tool_results)}",
+                "content": (
+                    f"Tool results: {json.dumps(tool_results)}"
+                ),
             })
 
         if not all_text.strip():
@@ -218,23 +198,26 @@ class ResearchAgent(BaseAgent):
         )
 
     def _build_summary(self, sales_data: SalesData) -> str:
-        """Fallback summary if LLM didn't produce text."""
         parts = ["Here's what I found:\n"]
-        if sales_data.competitors:
-            parts.append("**Competitors:**")
-            for c in sales_data.competitors:
-                parts.append(f"- {c.name}: {c.description}")
+        if sales_data.regional_incentives:
+            parts.append("**Regional Incentives:**")
+            for i in sales_data.regional_incentives:
+                parts.append(f"- {i}")
+        if sales_data.energy_price_outlook:
+            parts.append(
+                f"\n**Energy Prices:** "
+                f"{sales_data.energy_price_outlook}"
+            )
         if sales_data.market_trends:
             parts.append("\n**Market Trends:**")
             for t in sales_data.market_trends:
                 parts.append(f"- {t}")
-        if sales_data.market_size:
-            parts.append(
-                f"\n**Market Size:** {sales_data.market_size}"
-            )
+        if sales_data.competitors:
+            parts.append("\n**Competitors:**")
+            for c in sales_data.competitors:
+                parts.append(f"- {c.name}: {c.description}")
         parts.append(
-            "\nResearch complete — "
-            "moving to the strategy phase."
+            "\nResearch complete — moving to strategy."
         )
         return "\n".join(parts)
 
@@ -251,31 +234,41 @@ class ResearchAgent(BaseAgent):
             )
             return result.output
 
-        if tool_name == "store_competitor":
-            competitor = CompetitorInfo(
-                name=tool_input["name"],
-                description=tool_input.get("description", ""),
-                strengths=tool_input.get("strengths", []),
-                weaknesses=tool_input.get("weaknesses", []),
-                market_share=tool_input.get("market_share", ""),
-            )
-            names = {c.name for c in sales_data.competitors}
-            if competitor.name not in names:
-                sales_data.competitors.append(competitor)
-            return f"Stored competitor: {competitor.name}"
-
-        if tool_name == "store_market_trends":
-            for trend in tool_input.get("trends", []):
+        if tool_name == "store_research":
+            for inc in tool_input.get(
+                "regional_incentives", []
+            ):
+                if inc not in sales_data.regional_incentives:
+                    sales_data.regional_incentives.append(inc)
+            if tool_input.get("energy_price_outlook"):
+                sales_data.energy_price_outlook = (
+                    tool_input["energy_price_outlook"]
+                )
+            for trend in tool_input.get("market_trends", []):
                 if trend not in sales_data.market_trends:
                     sales_data.market_trends.append(trend)
-            if tool_input.get("market_size"):
-                sales_data.market_size = (
-                    tool_input["market_size"]
+            for ins in tool_input.get("insights", []):
+                if ins not in sales_data.industry_insights:
+                    sales_data.industry_insights.append(ins)
+            if tool_input.get("competitor_name"):
+                comp = CompetitorInfo(
+                    name=tool_input["competitor_name"],
+                    description=tool_input.get(
+                        "competitor_description", ""
+                    ),
+                    strengths=tool_input.get(
+                        "competitor_strengths", []
+                    ),
+                    weaknesses=tool_input.get(
+                        "competitor_weaknesses", []
+                    ),
                 )
-            for insight in tool_input.get("insights", []):
-                if insight not in sales_data.industry_insights:
-                    sales_data.industry_insights.append(insight)
-            return "Market trends stored"
+                names = {
+                    c.name for c in sales_data.competitors
+                }
+                if comp.name not in names:
+                    sales_data.competitors.append(comp)
+            return "Research stored"
 
         return "Unknown tool"
 
@@ -283,9 +276,9 @@ class ResearchAgent(BaseAgent):
         self, context: AgentContext, task: str
     ) -> list[str]:
         return [
-            "Search for direct competitors",
-            "Analyze competitive landscape",
-            "Research market trends and size",
+            "Search for regional energy incentives",
+            "Research energy prices and outlook",
+            "Find competitor pricing",
             "Summarize findings",
         ]
 
