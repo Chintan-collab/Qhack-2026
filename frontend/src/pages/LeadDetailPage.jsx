@@ -9,7 +9,6 @@ import {
   Wallet,
   Target,
   MessageCircle,
-  Send,
   Home,
   Calendar,
   Flame,
@@ -100,8 +99,8 @@ export default function LeadPage() {
 
   const handleOpenChat = useCallback(async () => {
     const pid = await ensureProject();
-    navigate("/chat", { state: { lead, projectId: pid } });
-  }, [ensureProject, navigate, lead]);
+    navigate(`/projects/${pid}/chat`);
+  }, [ensureProject, navigate]);
 
   const formatProduct = (value) => {
     if (!value) return "—";
@@ -259,19 +258,14 @@ export default function LeadPage() {
                 </div>
               </div>
 
-              <div className="lead-action-buttons">
+              <div style={{ display: "flex", gap: "14px", marginTop: "24px" }}>
                 <button
                   className="primary-btn"
                   onClick={handleOpenChat}
+                  style={{ minHeight: "48px", padding: "0 28px", fontSize: "0.95rem", fontWeight: 600 }}
                 >
-                  Open Full Chat
-                </button>
-
-                <button
-                  className="secondary-btn"
-                  onClick={() => navigate("/report")}
-                >
-                  View Report
+                  <MessageCircle size={18} style={{ marginRight: 8 }} />
+                  Start Sales Coaching
                 </button>
               </div>
             </div>

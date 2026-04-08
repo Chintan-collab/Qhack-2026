@@ -16,22 +16,32 @@ from app.agents.sales.schemas import (
 from app.core.config import settings
 
 SYSTEM_PROMPT = """\
-You are a market research analyst for a residential energy installer. \
-Given customer and property data, research the local energy market to \
-help the installer build a compelling pitch.
+You are the Cloover AI Sales Coach — a research assistant helping an \
+energy installer prepare for a customer visit. You speak directly to \
+the installer (not the customer).
+
+Given the customer and property data, research the local energy market.
 
 Use the `web_search` tool to find:
-1. Regional subsidies, tax credits, and incentive programs (e.g. KfW, BAFA, \
-local municipality programs) for the customer's postal code area
+1. Regional subsidies and incentive programs (KfW, BAFA, local programs) \
+for the customer's postal code area
 2. Current energy prices and outlook in Germany
-3. Competitor pricing for the products the customer is interested in
+3. Competitor pricing for relevant products
 4. Market trends in residential solar/heat pump/battery adoption
 
 After searching, use `store_research` to save your findings.
 
-When you have enough data (incentives + at least some market context), \
-present a clear summary and say you are ready for the strategy phase. \
-Do NOT ask the user what to search — you already have the customer data."""
+IMPORTANT INTERACTION RULES:
+- Do NOT ask the installer what to search. You already have the data — \
+just do the research proactively.
+- After completing your research, present a clear summary of findings.
+- Then ASK the installer: "Do you have any additional context about this \
+customer, or specific areas you'd like me to dig deeper into? When you're \
+ready, say **'move to strategy'** and I'll help build your pitch."
+- If the installer provides more context or asks for more research, do it.
+- Only call `mark_research_complete` when the installer explicitly says \
+to proceed to strategy (e.g. "move to strategy", "let's proceed", "looks good").
+- You are NOT allowed to auto-advance. Wait for the installer's go-ahead."""
 
 SEARCH_TOOL = {
     "name": "web_search",
@@ -85,7 +95,22 @@ STORE_RESEARCH_TOOL = {
     },
 }
 
-ALL_TOOLS = [SEARCH_TOOL, STORE_RESEARCH_TOOL]
+MARK_RESEARCH_COMPLETE_TOOL = {
+    "name": "mark_research_complete",
+    "description": "Mark research as complete and advance to strategy phase. Only call this when the installer explicitly says to proceed.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "summary": {
+                "type": "string",
+                "description": "Brief summary of research findings",
+            }
+        },
+        "required": ["summary"],
+    },
+}
+
+ALL_TOOLS = [SEARCH_TOOL, STORE_RESEARCH_TOOL, MARK_RESEARCH_COMPLETE_TOOL]
 
 
 def _get_sales_data(context: AgentContext) -> SalesData:
@@ -113,6 +138,9 @@ class ResearchAgent(BaseAgent):
         from app.agents.tools.web_search import WebSearchTool
         self._search_tool = WebSearchTool()
 
+    def _has_research(self, sales_data: SalesData) -> bool:
+        return bool(sales_data.regional_incentives or sales_data.market_trends or sales_data.energy_price_outlook)
+
     async def execute(
         self,
         context: AgentContext,
@@ -120,79 +148,126 @@ class ResearchAgent(BaseAgent):
     ) -> AgentMessage:
         sales_data = _get_sales_data(context)
 
-        known = json.dumps(
-            {
-                "customer": sales_data.customer_name,
-                "postal_code": sales_data.postal_code,
-                "city": sales_data.city,
-                "product_interest": sales_data.product_interest,
-                "house_type": sales_data.house_type,
-                "build_year": sales_data.build_year,
-                "heating_type": sales_data.heating_type,
-                "electricity_kwh_year": sales_data.electricity_kwh_year,
-                "monthly_bill": sales_data.monthly_energy_bill_eur,
-                "existing_assets": sales_data.existing_assets,
-            },
-            indent=2,
-        )
-        system = (
-            self.system_prompt
-            + f"\n\nCustomer data:\n{known}"
-        )
+        known = {
+            "customer": sales_data.customer_name,
+            "postal_code": sales_data.postal_code,
+            "city": sales_data.city,
+            "product_interest": sales_data.product_interest,
+            "house_type": sales_data.house_type,
+            "build_year": sales_data.build_year,
+            "heating_type": sales_data.heating_type,
+            "electricity_kwh_year": sales_data.electricity_kwh_year,
+            "monthly_bill": sales_data.monthly_energy_bill_eur,
+            "existing_assets": sales_data.existing_assets,
+        }
 
-        messages = [
-            {"role": "user", "content": message.content}
+        # Follow-up message (research already done) — handle user input
+        if self._has_research(sales_data):
+            return await self._handle_followup(context, message, sales_data, known)
+
+        # Step 1: Run web searches proactively
+        product = sales_data.product_interest or "solar"
+        postal = sales_data.postal_code or ""
+        city = sales_data.city or "Germany"
+
+        queries = [
+            f"KfW BAFA subsidies {product} Germany 2025 2026",
+            f"energy prices Germany residential electricity gas 2025 outlook",
+            f"{product} installer prices cost Germany {city}",
+            f"residential {product} market trends Germany adoption rate",
         ]
 
-        all_text = ""
-        for _ in range(settings.MAX_AGENT_STEPS):
-            response = await chat_completion(
-                model=self.model,
-                max_tokens=2048,
-                system=system,
-                messages=messages,
-                tools=ALL_TOOLS,
-            )
+        search_results = []
+        for q in queries:
+            try:
+                result = await self._search_tool.execute(query=q)
+                search_results.append({"query": q, "results": result.output})
+            except Exception:
+                search_results.append({"query": q, "results": "Search failed"})
 
-            tool_results = []
-            all_text += response.text
-            for tc in response.tool_calls:
-                result = await self._handle_tool(
-                    tc.name,
-                    tc.input,
-                    sales_data,
-                )
-                tool_results.append({
-                    "type": "tool_result",
-                    "name": tc.name,
-                    "content": result,
-                })
+        # Step 2: Synthesize with LLM
+        synthesis_prompt = (
+            f"You are the Cloover AI Sales Coach researching for an installer.\n\n"
+            f"Customer data:\n{json.dumps(known, indent=2)}\n\n"
+            f"Web search results:\n{json.dumps(search_results, indent=2)}\n\n"
+            f"Based on these search results, provide a clear research briefing "
+            f"for the installer. Structure your response as:\n\n"
+            f"**Regional Incentives & Subsidies**\n"
+            f"- List specific programs (KfW, BAFA, local) with amounts\n\n"
+            f"**Energy Price Context**\n"
+            f"- Current prices, trends, projections\n\n"
+            f"**Market & Competitor Landscape**\n"
+            f"- Market trends, typical pricing\n\n"
+            f"**Key Takeaways for This Customer**\n"
+            f"- What matters most for this specific situation\n\n"
+            f"End by asking the installer: \"Do you have any additional "
+            f"context about this customer? When ready, say **move to strategy** "
+            f"and I'll help build your pitch.\"\n\n"
+            f"Also call `store_research` to save the structured findings."
+        )
 
-            _save(context, sales_data)
+        response = await chat_completion(
+            model=self.model,
+            max_tokens=8192,
+            system=self.system_prompt + f"\n\nCustomer data:\n{json.dumps(known, indent=2)}",
+            messages=[{"role": "user", "content": synthesis_prompt}],
+            tools=[STORE_RESEARCH_TOOL, MARK_RESEARCH_COMPLETE_TOOL],
+        )
 
-            if (
-                response.stop_reason == "end_turn"
-                or not tool_results
-            ):
-                break
+        # Handle any tool calls from the synthesis
+        for tc in response.tool_calls:
+            await self._handle_tool(tc.name, tc.input, sales_data)
 
-            messages.append({
-                "role": "assistant",
-                "content": response.text or "Using tools.",
-            })
-            messages.append({
-                "role": "user",
-                "content": (
-                    f"Tool results: {json.dumps(tool_results)}"
-                ),
-            })
+        _save(context, sales_data)
 
-        if not all_text.strip():
-            all_text = self._build_summary(sales_data)
+        reply = response.text
+        if not reply.strip():
+            reply = self._build_summary(sales_data)
 
         return AgentMessage(
             role=MessageRole.ASSISTANT,
-            content=all_text,
+            content=reply,
+            agent_name=self.name,
+            metadata={"phase": sales_data.phase.value},
+        )
+
+    async def _handle_followup(
+        self,
+        context: AgentContext,
+        message: AgentMessage,
+        sales_data: SalesData,
+        known: dict,
+    ) -> AgentMessage:
+        """Handle follow-up messages after research is done."""
+        existing = self._build_summary(sales_data)
+        system = (
+            self.system_prompt
+            + f"\n\nCustomer data:\n{json.dumps(known, indent=2)}"
+            + f"\n\nResearch already gathered:\n{existing}"
+        )
+        response = await chat_completion(
+            model=self.model,
+            max_tokens=2048,
+            system=system,
+            messages=[{"role": "user", "content": message.content}],
+            tools=[STORE_RESEARCH_TOOL, MARK_RESEARCH_COMPLETE_TOOL],
+        )
+
+        for tc in response.tool_calls:
+            await self._handle_tool(tc.name, tc.input, sales_data)
+
+        _save(context, sales_data)
+
+        reply = response.text
+        if not reply.strip():
+            if sales_data.phase == SalesPhase.STRATEGY:
+                reply = "Great, let's move to building your sales strategy!"
+            else:
+                reply = "Understood. Anything else you'd like me to research, or shall we move to strategy?"
+
+        return AgentMessage(
+            role=MessageRole.ASSISTANT,
+            content=reply,
             agent_name=self.name,
             metadata={"phase": sales_data.phase.value},
         )
@@ -269,6 +344,10 @@ class ResearchAgent(BaseAgent):
                 if comp.name not in names:
                     sales_data.competitors.append(comp)
             return "Research stored"
+
+        if tool_name == "mark_research_complete":
+            sales_data.phase = SalesPhase.STRATEGY
+            return "Research complete — advancing to strategy phase."
 
         return "Unknown tool"
 

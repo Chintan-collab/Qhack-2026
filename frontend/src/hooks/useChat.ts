@@ -9,11 +9,28 @@ export function useChat(projectId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const initializedRef = useRef(false);
 
-  // On mount: if we have a projectId, look up existing conversation
+  // On mount: if we have a projectId, load project phase + existing conversation
   useEffect(() => {
     if (!projectId || initializedRef.current) return;
     initializedRef.current = true;
 
+    // Clear previous chat state
+    store.clearMessages();
+    store.setActiveConversation(null);
+
+    // Load project phase
+    api.projects.get(projectId).then((project) => {
+      const phaseMap: Record<string, string> = {
+        data_gathering: "data_gathering",
+        research: "research",
+        strategy: "strategy",
+        deliverable: "deliverable",
+        complete: "complete",
+      };
+      store.setCurrentPhase(phaseMap[project.status] ?? "data_gathering");
+    }).catch(() => {});
+
+    // Resume existing conversation if any
     api.projects.getConversation(projectId).then((convId) => {
       if (convId) {
         store.setActiveConversation(convId);
