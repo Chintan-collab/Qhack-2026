@@ -175,6 +175,9 @@ class ChatService:
             and sales_data.is_gathering_complete()
         ):
             sales_data.phase = SalesPhase.RESEARCH
+            # Also update the project row so the frontend sees the correct phase
+            project.status = "research"
+            await self.db.commit()
 
         context.shared_state["sales_data"] = (
             sales_data.model_dump()

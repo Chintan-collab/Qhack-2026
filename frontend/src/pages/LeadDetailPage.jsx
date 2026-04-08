@@ -9,7 +9,6 @@ import {
   Wallet,
   Target,
   MessageCircle,
-  Send,
   Home,
   Calendar,
   Flame,
@@ -36,32 +35,81 @@ const leads = [
   },
   {
     id: 2,
-    name: "Emma Fischer",
-    area: "Heidelberg",
-    postcode: "69115",
+    name: "Anna Schneider",
+    postal_code: "69120",
+    city: "Heidelberg",
+    product_interest: "Solar",
     household_size: 2,
-    annual_consumption_kwh: 2800,
-    budget_band: "high",
-    product_interest: "heat_pump",
-    customer_goal: "Upgrade heating system for long-term savings",
+    house_type: "Semi-detached",
+    build_year: 1998,
+    roof_orientation: "South-East",
+    electricity_kwh_year: 3200,
+    heating_type: "Gas",
+    monthly_energy_bill_eur: 120,
+    existing_assets: "None",
+    financial_profile: "High income, prefers cash",
+    notes: "Interested in sustainability and reducing carbon footprint",
   },
   {
     id: 3,
-    name: "Noah Weber",
-    area: "Stuttgart",
-    postcode: "70173",
+    name: "Sabine Keller",
+    postal_code: "74523",
+    city: "Schwäbisch Hall",
+    product_interest: "Heat pump + Solar",
+    household_size: 5,
+    house_type: "Detached",
+    build_year: 1978,
+    roof_orientation: "South-West",
+    electricity_kwh_year: 6000,
+    heating_type: "Oil",
+    monthly_energy_bill_eur: 260,
+    existing_assets: "None",
+    financial_profile: "Limited upfront budget, needs financing",
+    notes: "Large roof area, wants to replace oil heating before regulations hit",
+  },
+  {
+    id: 4,
+    name: "Daniel Braun",
+    postal_code: "74072",
+    city: "Heilbronn",
+    product_interest: "Solar + Battery + Wallbox",
+    household_size: 2,
+    house_type: "Detached",
+    build_year: 2012,
+    roof_orientation: "South",
+    electricity_kwh_year: 3500,
+    heating_type: "Heat pump",
+    monthly_energy_bill_eur: 140,
+    existing_assets: "None",
+    financial_profile: "High income, prefers full package",
+    notes: "Just bought an EV, wants full energy independence",
+  },
+  {
+    id: 5,
+    name: "Petra Lange",
+    postal_code: "70563",
+    city: "Stuttgart",
+    product_interest: "Heat pump",
     household_size: 4,
-    annual_consumption_kwh: 5100,
-    budget_band: "medium",
-    product_interest: "wallbox",
-    customer_goal: "Prepare home charging setup for EV usage",
+    house_type: "Detached",
+    build_year: 1970,
+    roof_orientation: "South-West",
+    electricity_kwh_year: 5200,
+    heating_type: "Oil",
+    monthly_energy_bill_eur: 250,
+    existing_assets: "Solar 5 kWp",
+    financial_profile: "Financing required",
+    notes: "Already has solar, concerned about oil price volatility and GEG deadline",
   },
 ];
 
 export default function LeadPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [projectId, setProjectId] = useState(null);
+  // Persist lead→project mapping in localStorage
+  const [projectId, setProjectId] = useState(() => {
+    return localStorage.getItem(`lead_project_${id}`) || null;
+  });
 
   const lead = useMemo(() => {
     return leads.find((item) => item.id === Number(id));
@@ -95,13 +143,14 @@ export default function LeadPage() {
     });
     const project = await res.json();
     setProjectId(project.id);
+    localStorage.setItem(`lead_project_${id}`, project.id);
     return project.id;
-  }, [projectId, lead]);
+  }, [projectId, lead, id]);
 
   const handleOpenChat = useCallback(async () => {
     const pid = await ensureProject();
-    navigate("/chat", { state: { lead, projectId: pid } });
-  }, [ensureProject, navigate, lead]);
+    navigate(`/projects/${pid}/chat`);
+  }, [ensureProject, navigate]);
 
   const formatProduct = (value) => {
     if (!value) return "—";
@@ -259,19 +308,14 @@ export default function LeadPage() {
                 </div>
               </div>
 
-              <div className="lead-action-buttons">
+              <div style={{ display: "flex", gap: "14px", marginTop: "24px" }}>
                 <button
                   className="primary-btn"
                   onClick={handleOpenChat}
+                  style={{ minHeight: "48px", padding: "0 28px", fontSize: "0.95rem", fontWeight: 600 }}
                 >
-                  Open Full Chat
-                </button>
-
-                <button
-                  className="secondary-btn"
-                  onClick={() => navigate("/report")}
-                >
-                  View Report
+                  <MessageCircle size={18} style={{ marginRight: 8 }} />
+                  Start Sales Coaching
                 </button>
               </div>
             </div>

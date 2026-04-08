@@ -60,7 +60,7 @@ export default function ProjectCreate() {
           <button
             type="submit"
             disabled={!name.trim() || submitting}
-            className="px-6 py-2 bg-blue-600 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition"
+            className="px-6 py-2 bg-[#3535F3] rounded-lg text-sm hover:bg-[#2828D0] disabled:opacity-50 transition"
           >
             {submitting ? "Creating..." : "Create Project"}
           </button>

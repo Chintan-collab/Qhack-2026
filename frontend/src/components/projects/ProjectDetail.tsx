@@ -52,9 +52,9 @@ export default function ProjectDetail() {
 
         <Link
           to={`/projects/${project.id}/deliverable`}
-          className="flex items-center gap-3 p-5 bg-gray-900 rounded-xl border border-gray-800 hover:border-purple-600 transition"
+          className="flex items-center gap-3 p-5 bg-gray-900 rounded-xl border border-gray-800 hover:border-[#3535F3] transition"
         >
-          <FileText className="w-6 h-6 text-purple-500" />
+          <FileText className="w-6 h-6 text-[#5555F7]" />
           <div>
             <div className="font-medium">Pitch Deck</div>
             <div className="text-sm text-gray-400">View generated report</div>

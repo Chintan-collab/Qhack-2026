@@ -5,10 +5,10 @@ import { api } from "../../services/api";
 import type { Project } from "../../types/project";
 
 const STATUS_COLORS: Record<string, string> = {
-  gathering: "bg-blue-600",
-  researching: "bg-green-600",
-  strategizing: "bg-orange-500",
-  complete: "bg-purple-600",
+  gathering: "bg-[#3535F3]",
+  researching: "bg-[#4747F5]",
+  strategizing: "bg-[#5555F7]",
+  complete: "bg-[#3535F3]",
 };
 
 export default function ProjectList() {
@@ -32,7 +32,7 @@ export default function ProjectList() {
         <h1 className="text-2xl font-bold">Sales Projects</h1>
         <Link
           to="/projects/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[#3535F3] rounded-lg hover:bg-[#2828D0] transition text-sm"
         >
           <Plus className="w-4 h-4" /> New Project
         </Link>

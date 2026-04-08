@@ -59,6 +59,11 @@ export const api = {
     downloadUrl: (id: string) => `${BASE_URL}/deliverables/${id}/download`,
   },
 
+  report: {
+    generate: (projectId: string) =>
+      request<Record<string, unknown>>(`/report/generate/${projectId}`, { method: "POST" }),
+  },
+
   voice: {
     transcribe: async (blob: Blob): Promise<string> => {
       const formData = new FormData();

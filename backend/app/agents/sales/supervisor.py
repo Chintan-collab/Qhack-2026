@@ -17,38 +17,44 @@ PHASE_AGENT_MAP: dict[SalesPhase, str] = {
     SalesPhase.DELIVERABLE: "pitch_deck",
 }
 
-# Auto-handoff messages injected by the supervisor when
-# transitioning to a new phase without user input.
+# Handoff prompts — only used for automatic silent transitions.
+# A phase that has a handoff prompt will auto-run after the previous
+# phase finishes (chained, in a single user turn). A phase that does
+# NOT have one is a "manual gate" — the supervisor stops there and
+# waits for the next user message.
+#
+# Today the manual gate is STRATEGY: research → analysis → financial
+# all chain automatically, then we wait for the installer to review
+# the briefing before kicking off the strategy conversation.
 HANDOFF_PROMPTS: dict[SalesPhase, str] = {
     SalesPhase.RESEARCH: (
-        "Customer data gathering is complete. "
-        "Research regional energy incentives, pricing, and "
-        "market data for this customer's area."
+        "Customer data is complete. Research regional energy incentives, "
+        "pricing, and market data for this customer's area. Present your "
+        "findings to the installer and ask if they have any additional "
+        "context or priorities before moving to strategy."
     ),
     SalesPhase.ANALYSIS: (
-        "Market research is complete. "
-        "Run the data analysis: geocode the customer, pull PVGIS "
-        "solar yield, fetch SMARD wholesale prices, and infer house "
-        "type, heating costs, and 3 bundle tiers (Starter / Recommended / "
-        "Full Independence)."
+        "Market research is complete. Run the data analysis: geocode the "
+        "customer, pull PVGIS solar yield, fetch SMARD wholesale prices, "
+        "and infer house type, heating costs, and 3 bundle tiers "
+        "(Starter / Recommended / Full Independence)."
     ),
     SalesPhase.FINANCIAL: (
-        "Analysis is complete with solar yield, retail price, and "
-        "bundle tiers inferred. Now run the financial pipeline: "
-        "apply KfW/BEG/BAFA subsidies per component, build cash / "
-        "subsidy+cash / subsidy+financing scenarios for each tier, "
-        "and flag age-based suitability alerts."
-    ),
-    SalesPhase.STRATEGY: (
-        "Financial scenarios are ready. Propose a personalized sales "
-        "strategy for this customer grounded in the tiered bundles, "
-        "subsidies, and financing scenarios."
+        "Analysis is complete with solar yield, retail price, and bundle "
+        "tiers inferred. Now run the financial pipeline: apply KfW/BEG/BAFA "
+        "subsidies per component, build cash / subsidy+cash / "
+        "subsidy+financing scenarios for each tier, and flag age-based "
+        "suitability alerts."
     ),
     SalesPhase.DELIVERABLE: (
         "The sales strategy has been finalized. "
         "Generate the personalized pitch deck for the customer."
     ),
 }
+
+# Safety cap on how many auto-handoffs can chain in a single user turn.
+# data → research → analysis → financial → strategy → deliverable = 6.
+MAX_AUTO_HANDOFFS = 6
 
 
 def _get_sales_data(context: AgentContext) -> SalesData:
@@ -67,13 +73,32 @@ def _save_sales_data(
 
 
 class SalesSupervisor(AgentOrchestrator):
-    """Phase-based orchestrator for the sales pipeline.
+    """Phase-based orchestrator for Cleo, Cloover's AI Sales Coach.
 
-    Routes messages to the correct specialist agent based on the
-    current phase. When a phase transition occurs, automatically
-    triggers the next agent with a handoff message — the user
-    does not need to send a message between phases.
+    Key behaviors:
+    - If lead data is already complete, skip data gathering → research.
+    - Research / Analysis / Financial chain automatically in one turn
+      (each has a handoff prompt). The chain stops at STRATEGY because
+      strategy is the manual gate where the installer reviews the
+      briefing and gives input.
+    - Strategy → Deliverable auto-advances after strategy is marked
+      complete.
     """
+
+    def _maybe_fast_forward(self, context: AgentContext) -> bool:
+        """On first interaction, if data is already complete, advance past gathering."""
+        sd = _get_sales_data(context)
+        if sd.is_gathering_complete() and sd.phase in (
+            SalesPhase.DATA_GATHERING, SalesPhase.RESEARCH
+        ):
+            if sd.phase == SalesPhase.DATA_GATHERING:
+                sd.phase = SalesPhase.RESEARCH
+                _save_sales_data(context, sd)
+            # Only fast-forward if no research has been done yet
+            if not sd.regional_incentives and not sd.market_trends:
+                logger.info("Lead data complete, no research yet — fast-forwarding to research")
+                return True
+        return False
 
     async def route(
         self, context: AgentContext, message: AgentMessage
@@ -103,10 +128,14 @@ class SalesSupervisor(AgentOrchestrator):
         """Return the new phase if it changed, else None."""
         sales_data = _get_sales_data(context)
         if sales_data.phase != phase_before:
-            # Agent already advanced the phase
+            # The agent advanced the phase itself (e.g. research →
+            # analysis via mark_research_complete, analysis → financial
+            # via is_analysis_complete, financial → strategy via
+            # is_financial_complete, etc.). Trust it.
             return sales_data.phase
 
-        # Safety-net check based on data conditions
+        # Safety nets — auto-advance based on data conditions if the
+        # agent forgot to set the phase.
         if (
             sales_data.phase == SalesPhase.DATA_GATHERING
             and sales_data.is_gathering_complete()
@@ -140,7 +169,6 @@ class SalesSupervisor(AgentOrchestrator):
         context: AgentContext,
         message: AgentMessage,
     ) -> AgentMessage:
-        """Route to the right agent and execute one turn."""
         agent = await self.route(context, message)
         context.current_step += 1
         response = await agent.execute(context, message)
@@ -148,121 +176,187 @@ class SalesSupervisor(AgentOrchestrator):
         context.history.append(response)
         return response
 
-    # ------------------------------------------------------------------
-    # execute(): used by the REST (non-streaming) path
-    # ------------------------------------------------------------------
-
-    async def execute(
-        self, context: AgentContext, message: AgentMessage
+    async def _run_chain(
+        self,
+        context: AgentContext,
+        first_message: AgentMessage,
     ) -> AgentMessage:
-        phase_before = _get_sales_data(context).phase
+        """Run the routed agent + chain auto-handoffs until none triggers.
 
-        response = await self._run_agent(context, message)
+        Each iteration:
+          1. Runs the current-phase agent
+          2. Detects whether the phase changed
+          3. If the new phase has a handoff prompt, builds a fake user
+             message with that prompt and loops to run the next agent
+          4. Otherwise stops — the user is now the gate
+        """
+        pieces: list[str] = []
+        last_response: AgentMessage | None = None
+        current_msg = first_message
 
-        new_phase = self._detect_phase_change(
-            context, phase_before
-        )
-        if not new_phase or new_phase == phase_before:
-            return response
+        for _ in range(MAX_AUTO_HANDOFFS):
+            phase_before = _get_sales_data(context).phase
+            response = await self._run_agent(context, current_msg)
+            pieces.append(response.content)
+            last_response = response
 
-        # Phase changed — auto-trigger the next agent
-        logger.info(
-            f"Auto-handoff: {phase_before.value} -> "
-            f"{new_phase.value}"
-        )
-        sd = _get_sales_data(context)
-        sd.phase = new_phase
-        _save_sales_data(context, sd)
+            new_phase = self._detect_phase_change(context, phase_before)
+            if not new_phase or new_phase == phase_before:
+                break
 
-        handoff_prompt = HANDOFF_PROMPTS.get(new_phase, "Continue.")
-        handoff_msg = AgentMessage(
-            role=MessageRole.USER,
-            content=handoff_prompt,
-        )
-
-        next_response = await self._run_agent(
-            context, handoff_msg
-        )
-
-        # Combine both responses so the user sees the full picture
-        combined_content = (
-            response.content
-            + "\n\n---\n\n"
-            + next_response.content
-        )
-        return AgentMessage(
-            role=MessageRole.ASSISTANT,
-            content=combined_content,
-            agent_name=next_response.agent_name,
-            metadata=next_response.metadata,
-        )
-
-    # ------------------------------------------------------------------
-    # stream(): used by the WebSocket path
-    # ------------------------------------------------------------------
-
-    async def stream(
-        self, context: AgentContext, message: AgentMessage
-    ) -> AsyncIterator[dict]:
-        phase_before = _get_sales_data(context).phase
-
-        # Run the current-phase agent
-        agent = await self.route(context, message)
-        yield {"type": "agent_selected", "agent": agent.name}
-
-        context.current_step += 1
-        response = await agent.execute(context, message)
-        context.history.append(message)
-        context.history.append(response)
-
-        yield {
-            "type": "message",
-            "content": response.content,
-            "agent": agent.name,
-        }
-
-        # Check for phase transition
-        new_phase = self._detect_phase_change(
-            context, phase_before
-        )
-        if new_phase and new_phase != phase_before:
             sd = _get_sales_data(context)
             sd.phase = new_phase
             _save_sales_data(context, sd)
 
-            yield {
-                "type": "phase_changed",
-                "phase": new_phase.value,
-            }
+            handoff_prompt = HANDOFF_PROMPTS.get(new_phase)
+            if not handoff_prompt:
+                # Phase changed but no auto-handoff for this phase →
+                # this is the manual gate. Stop and return to the user.
+                break
 
-            # Auto-trigger the next agent
-            handoff_prompt = HANDOFF_PROMPTS.get(
-                new_phase, "Continue."
+            logger.info(
+                f"Auto-handoff: {phase_before.value} -> {new_phase.value}"
             )
-            handoff_msg = AgentMessage(
+            current_msg = AgentMessage(
                 role=MessageRole.USER,
                 content=handoff_prompt,
             )
 
-            next_agent = await self.route(
-                context, handoff_msg
+        if last_response is None:
+            # Should never happen — keeps mypy happy.
+            return AgentMessage(
+                role=MessageRole.ASSISTANT,
+                content="(no response)",
+                agent_name=None,
             )
-            yield {
-                "type": "agent_selected",
-                "agent": next_agent.name,
-            }
 
+        return AgentMessage(
+            role=MessageRole.ASSISTANT,
+            content="\n\n---\n\n".join(pieces),
+            agent_name=last_response.agent_name,
+            metadata=last_response.metadata,
+        )
+
+    async def execute(
+        self, context: AgentContext, message: AgentMessage
+    ) -> AgentMessage:
+        # Fast-forward on first message if data is complete
+        fast_forwarded = self._maybe_fast_forward(context)
+
+        if fast_forwarded:
+            sd = _get_sales_data(context)
+            intro = (
+                f"I already have the details for {sd.customer_name or 'this customer'} "
+                f"in {sd.city or 'their area'}. Let me research the market, "
+                f"run the analysis, and build the financing scenarios.\n\n"
+                f"*Please hold on while I look into this...*"
+            )
+
+            handoff_msg = AgentMessage(
+                role=MessageRole.USER,
+                content=HANDOFF_PROMPTS.get(SalesPhase.RESEARCH, "Research this customer."),
+            )
+            chain_response = await self._run_chain(context, handoff_msg)
+
+            return AgentMessage(
+                role=MessageRole.ASSISTANT,
+                content=intro + "\n\n---\n\n" + chain_response.content,
+                agent_name=chain_response.agent_name,
+                metadata=chain_response.metadata,
+            )
+
+        return await self._run_chain(context, message)
+
+    async def stream(
+        self, context: AgentContext, message: AgentMessage
+    ) -> AsyncIterator[dict]:
+        fast_forwarded = self._maybe_fast_forward(context)
+
+        if fast_forwarded:
+            sd = _get_sales_data(context)
+            intro = (
+                f"I already have the details for {sd.customer_name or 'this customer'} "
+                f"in {sd.city or 'their area'}. Let me research the market, "
+                f"run the analysis, and build the financing scenarios.\n\n"
+                f"*Please hold on while I look into this...*"
+            )
+            yield {"type": "phase_changed", "phase": "research"}
+
+            handoff_msg = AgentMessage(
+                role=MessageRole.USER,
+                content=HANDOFF_PROMPTS.get(SalesPhase.RESEARCH, "Research."),
+            )
+            current_msg = handoff_msg
+            chained_pieces: list[str] = [intro]
+
+            for _ in range(MAX_AUTO_HANDOFFS):
+                phase_before = _get_sales_data(context).phase
+                agent = await self.route(context, current_msg)
+                yield {"type": "agent_selected", "agent": agent.name}
+                context.current_step += 1
+                response = await agent.execute(context, current_msg)
+                context.history.append(current_msg)
+                context.history.append(response)
+                chained_pieces.append(response.content)
+                yield {
+                    "type": "message",
+                    "content": response.content,
+                    "agent": agent.name,
+                }
+
+                new_phase = self._detect_phase_change(context, phase_before)
+                if not new_phase or new_phase == phase_before:
+                    break
+
+                sd2 = _get_sales_data(context)
+                sd2.phase = new_phase
+                _save_sales_data(context, sd2)
+                yield {"type": "phase_changed", "phase": new_phase.value}
+
+                handoff_prompt = HANDOFF_PROMPTS.get(new_phase)
+                if not handoff_prompt:
+                    break
+
+                current_msg = AgentMessage(
+                    role=MessageRole.USER,
+                    content=handoff_prompt,
+                )
+
+            yield {"type": "done"}
+            return
+
+        # Normal path: run the routed agent and chain handoffs
+        current_msg = message
+        for _ in range(MAX_AUTO_HANDOFFS):
+            phase_before = _get_sales_data(context).phase
+            agent = await self.route(context, current_msg)
+            yield {"type": "agent_selected", "agent": agent.name}
             context.current_step += 1
-            next_response = await next_agent.execute(
-                context, handoff_msg
-            )
-            context.history.append(handoff_msg)
-            context.history.append(next_response)
-
+            response = await agent.execute(context, current_msg)
+            context.history.append(current_msg)
+            context.history.append(response)
             yield {
                 "type": "message",
-                "content": next_response.content,
-                "agent": next_agent.name,
+                "content": response.content,
+                "agent": agent.name,
             }
+
+            new_phase = self._detect_phase_change(context, phase_before)
+            if not new_phase or new_phase == phase_before:
+                break
+
+            sd = _get_sales_data(context)
+            sd.phase = new_phase
+            _save_sales_data(context, sd)
+            yield {"type": "phase_changed", "phase": new_phase.value}
+
+            handoff_prompt = HANDOFF_PROMPTS.get(new_phase)
+            if not handoff_prompt:
+                break
+
+            current_msg = AgentMessage(
+                role=MessageRole.USER,
+                content=handoff_prompt,
+            )
 
         yield {"type": "done"}

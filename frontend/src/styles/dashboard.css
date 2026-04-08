@@ -15,7 +15,7 @@ body {
   overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(53, 53, 243, 0.14), transparent 30%),
     linear-gradient(135deg, #07111f 0%, #0b1728 45%, #111827 100%);
 }
 
@@ -37,7 +37,7 @@ body {
 .blob-1 {
   width: 280px;
   height: 280px;
-  background: #2563eb;
+  background: #3535F3;
   top: 8%;
   left: 8%;
 }
@@ -45,7 +45,7 @@ body {
 .blob-2 {
   width: 320px;
   height: 320px;
-  background: #14b8a6;
+  background: #4747F5;
   bottom: 5%;
   right: 8%;
   animation-delay: 2s;
@@ -84,7 +84,7 @@ body {
 .gradient-text {
   display: inline-block;
   margin-left: 10px;
-  background: linear-gradient(90deg, #60a5fa, #34d399, #a78bfa);
+  background: linear-gradient(90deg, #3535F3, #6565FF, #3535F3);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -103,7 +103,7 @@ body {
   gap: 8px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #dbeafe;
+  color: #d5d5fd;
   padding: 10px 16px;
   border-radius: 999px;
   font-size: 0.92rem;
@@ -132,7 +132,7 @@ body {
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  background: linear-gradient(135deg, #3535F3, #4747F5);
   color: white;
   box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
 }
@@ -196,7 +196,7 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 22px;
-  color: #dbeafe;
+  color: #d5d5fd;
   font-size: 0.95rem;
 }
 
@@ -276,7 +276,7 @@ body {
 .bar {
   flex: 1;
   border-radius: 14px 14px 6px 6px;
-  background: linear-gradient(180deg, #60a5fa, #14b8a6);
+  background: linear-gradient(180deg, #5555F7, #4747F5);
   animation: growBar 1.8s ease-in-out infinite alternate;
 }
 
@@ -383,7 +383,7 @@ body {
   overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(53, 53, 243, 0.14), transparent 30%),
     linear-gradient(135deg, #07111f 0%, #0b1728 45%, #111827 100%);
 }
 
@@ -506,7 +506,7 @@ body {
   padding: 10px 14px;
   border-radius: 999px;
   background: rgba(96, 165, 250, 0.12);
-  color: #bfdbfe;
+  color: #c5c5fd;
   border: 1px solid rgba(96, 165, 250, 0.18);
   font-size: 0.9rem;
   white-space: nowrap;
@@ -674,7 +674,7 @@ body {
   overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(53, 53, 243, 0.14), transparent 30%),
     linear-gradient(135deg, #07111f 0%, #0b1728 45%, #111827 100%);
 }
 
@@ -904,10 +904,10 @@ body {
 }
 
 .package-card-featured {
-  border-color: rgba(52, 211, 153, 0.45);
+  border-color: rgba(53, 53, 243, 0.45);
   background: linear-gradient(
     180deg,
-    rgba(16, 185, 129, 0.12),
+    rgba(53, 53, 243, 0.12),
     rgba(255, 255, 255, 0.06)
   );
 }
@@ -931,9 +931,9 @@ body {
   padding: 6px 10px;
   font-size: 0.78rem;
   border-radius: 999px;
-  background: rgba(52, 211, 153, 0.16);
-  color: #a7f3d0;
-  border: 1px solid rgba(52, 211, 153, 0.2);
+  background: rgba(53, 53, 243, 0.16);
+  color: #c5c5fd;
+  border: 1px solid rgba(53, 53, 243, 0.2);
 }
 
 .package-system {
@@ -1006,7 +1006,7 @@ body {
   place-items: center;
   background:
     radial-gradient(circle at center, rgba(13, 21, 36, 0.95) 54%, transparent 55%),
-    conic-gradient(#34d399 0deg, #60a5fa 220deg, rgba(255,255,255,0.08) 220deg 360deg);
+    conic-gradient(#6565FF 0deg, #5555F7 220deg, rgba(255,255,255,0.08) 220deg 360deg);
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
@@ -1217,10 +1217,10 @@ body {
 }
 
 .finance-card-featured {
-  border-color: rgba(52, 211, 153, 0.45);
+  border-color: rgba(53, 53, 243, 0.45);
   background: linear-gradient(
     180deg,
-    rgba(16, 185, 129, 0.12),
+    rgba(53, 53, 243, 0.12),
     rgba(255, 255, 255, 0.06)
   );
 }
@@ -1288,7 +1288,7 @@ body {
   height: 360px;
   right: 4%;
   bottom: 8%;
-  background: rgba(34, 197, 94, 0.18);
+  background: rgba(53, 53, 243, 0.18);
 }
 
 .login-hero-section {
@@ -1389,13 +1389,13 @@ body {
 }
 
 .remember-row input {
-  accent-color: #2563eb;
+  accent-color: #3535F3;
 }
 
 .text-link-btn {
   background: transparent;
   border: none;
-  color: #2563eb;
+  color: #3535F3;
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
@@ -1430,7 +1430,7 @@ body {
   display: grid;
   place-items: center;
   cursor: pointer;
-  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  background: linear-gradient(135deg, #3535F3, #4747F5);
   color: #ffffff;
   box-shadow: 0 18px 42px rgba(37, 99, 235, 0.28);
   z-index: 30;
@@ -1497,8 +1497,8 @@ body {
 }
 
 .chatbot-message.bot {
-  background: #eff6ff;
-  color: #1e3a8a;
+  background: #eeeeff;
+  color: #2020a0;
 }
 
 .chatbot-dialog-footer {
@@ -1604,7 +1604,7 @@ body {
   height: 360px;
   right: 4%;
   bottom: 8%;
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(53, 53, 243, 0.1);
 }
 
 .login-hero-section {
@@ -1654,7 +1654,7 @@ body {
 .gradient-text {
   display: inline-block;
   margin-left: 8px;
-  background: linear-gradient(90deg, #2563eb, #10b981);
+  background: linear-gradient(90deg, #3535F3, #4747F5);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -1712,7 +1712,7 @@ body {
   font-size: 0.8rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #2563eb;
+  color: #3535F3;
   font-weight: 700;
 }
 
@@ -1787,13 +1787,13 @@ body {
 }
 
 .remember-row input {
-  accent-color: #2563eb;
+  accent-color: #3535F3;
 }
 
 .text-link-btn {
   background: transparent;
   border: none;
-  color: #2563eb;
+  color: #3535F3;
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
@@ -1804,7 +1804,7 @@ body {
 }
 
 .primary-btn {
-  background: #2563eb;
+  background: #3535F3;
   color: white;
   border: none;
   border-radius: 12px;
@@ -1960,8 +1960,8 @@ body {
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: #eff6ff;
-  color: #2563eb;
+  background: #eeeeff;
+  color: #3535F3;
   flex-shrink: 0;
 }
 
@@ -2040,7 +2040,7 @@ body {
 
 .lead-select-card:hover {
   transform: translateY(-2px);
-  border-color: #bfdbfe;
+  border-color: #c5c5fd;
   box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
 }
 
@@ -2070,11 +2070,11 @@ body {
   align-items: center;
   padding: 7px 12px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #2563eb;
+  background: #eeeeff;
+  color: #3535F3;
   font-size: 0.82rem;
   font-weight: 600;
-  border: 1px solid #dbeafe;
+  border: 1px solid #d5d5fd;
 }
 
 .lead-select-card-body {
@@ -2185,7 +2185,7 @@ body {
   display: grid;
   place-items: center;
   cursor: pointer;
-  background: #2563eb;
+  background: #3535F3;
   color: #ffffff;
   box-shadow: 0 16px 40px rgba(37, 99, 235, 0.24);
   z-index: 40;
@@ -2245,8 +2245,8 @@ body {
 }
 
 .dashboard-chat-message.bot {
-  background: #eff6ff;
-  color: #1e3a8a;
+  background: #eeeeff;
+  color: #2020a0;
   align-self: flex-start;
 }
 
@@ -2376,7 +2376,7 @@ body {
   bottom: 24px;
   width: 60px;
   height: 60px;
-  background: #2563eb;
+  background: #3535F3;
   color: white;
   border-radius: 50%;
   border: none;
@@ -2452,7 +2452,7 @@ body {
   bottom: 24px;
   width: 60px;
   height: 60px;
-  background: #2563eb;
+  background: #3535F3;
   color: white;
   border-radius: 50%;
   border: none;
@@ -2531,7 +2531,7 @@ body {
   height: 360px;
   right: 4%;
   bottom: 8%;
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(53, 53, 243, 0.1);
 }
 
 .dashboard-container {
@@ -2561,7 +2561,7 @@ body {
   font-size: 0.8rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #2563eb;
+  color: #3535F3;
   font-weight: 700;
 }
 
@@ -2634,7 +2634,7 @@ body {
 }
 
 .lead-dashboard-card-active {
-  border-color: #bfdbfe;
+  border-color: #c5c5fd;
   box-shadow: 0 14px 32px rgba(37, 99, 235, 0.08);
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
 }
@@ -2663,9 +2663,9 @@ body {
   display: inline-flex;
   padding: 7px 12px;
   border-radius: 999px;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-  color: #2563eb;
+  background: #eeeeff;
+  border: 1px solid #d5d5fd;
+  color: #3535F3;
   font-size: 0.82rem;
   font-weight: 600;
   white-space: nowrap;
@@ -2840,9 +2840,9 @@ body {
   display: inline-flex;
   padding: 8px 12px;
   border-radius: 999px;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-  color: #2563eb;
+  background: #eeeeff;
+  border: 1px solid #d5d5fd;
+  color: #3535F3;
   font-size: 0.84rem;
   font-weight: 600;
 }
@@ -2913,7 +2913,7 @@ body {
   height: 60px;
   border-radius: 50%;
   border: none;
-  background: #2563eb;
+  background: #3535F3;
   color: #ffffff;
   display: grid;
   place-items: center;
@@ -3247,9 +3247,9 @@ body {
 }
 
 .lead-chat-bubble.assistant {
-  background: #eff6ff;
-  color: #1e3a8a;
-  border: 1px solid #bfdbfe;
+  background: #eeeeff;
+  color: #2020a0;
+  border: 1px solid #c5c5fd;
 }
 
 .lead-chat-input-row {
@@ -3261,7 +3261,7 @@ body {
 .lead-chat-input {
   flex: 1;
   height: 52px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #d5d5fd;
   border-radius: 16px;
   padding: 0 16px;
   font-size: 0.96rem;
@@ -3270,7 +3270,7 @@ body {
 }
 
 .lead-chat-input:focus {
-  border-color: #3b82f6;
+  border-color: #4747F5;
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
@@ -3465,4 +3465,82 @@ body {
   .lead-action-buttons .secondary-btn {
     width: 100%;
   }
+}
+
+/* ── PDF Export Mode ────────────────────────────────────────────
+   Applied temporarily during html2pdf capture.
+   Replaces glass/blur/opacity with solid backgrounds so
+   html2canvas renders correctly. */
+
+.pdf-export-mode {
+  background: #0a0f1e !important;
+}
+
+.pdf-export-mode .report-glass-card,
+.pdf-export-mode .report-side-card {
+  background: #111827 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.pdf-export-mode .report-hero-card {
+  background: #111827 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+.pdf-export-mode .hero-metric-card {
+  background: #1a2235 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.pdf-export-mode .package-card,
+.pdf-export-mode .finance-card {
+  background: #1a2235 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.pdf-export-mode .package-card-featured,
+.pdf-export-mode .finance-card-featured {
+  background: #1a2240 !important;
+  border-color: rgba(53, 53, 243, 0.5) !important;
+}
+
+.pdf-export-mode .summary-item,
+.pdf-export-mode .context-chip {
+  background: #1a2235 !important;
+}
+
+.pdf-export-mode .confidence-ring {
+  background: #1a2235 !important;
+}
+
+.pdf-export-mode .ai-highlight-card {
+  background: linear-gradient(135deg, #111835, #111827) !important;
+}
+
+.pdf-export-mode .badge {
+  background: #1a2240 !important;
+  backdrop-filter: none !important;
+}
+
+.pdf-export-mode .background-blobs,
+.pdf-export-mode .blob {
+  display: none !important;
+}
+
+.pdf-export-mode .gradient-text {
+  background: none !important;
+  -webkit-text-fill-color: #6565FF !important;
+  color: #6565FF !important;
+}
+
+.pdf-export-mode * {
+  transition: none !important;
+  animation: none !important;
 }

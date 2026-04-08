@@ -19,6 +19,7 @@ interface VoiceChatState {
 interface VoiceChatResponse {
   transcript: string;
   reply: string;
+  spoken_summary?: string;
   conversation_id: string;
   agent_name?: string;
   phase?: string;
@@ -82,6 +83,35 @@ async function speak(text: string, audioBase64?: string | null): Promise<void> {
     return playAudioBase64(audioBase64);
   }
   return speakTextBrowser(text);
+}
+
+/** Trim long responses for speech — keep it concise, full text stays in chat. */
+function trimForSpeech(text: string, maxLen = 350): string {
+  // Strip markdown formatting
+  let clean = text
+    .replace(/#{1,6}\s/g, "")
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
+    .replace(/---+/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[`~]/g, "")
+    .trim();
+
+  if (clean.length <= maxLen) return clean;
+
+  // Take the first paragraph or sentence block
+  const firstPara = clean.split(/\n\n/)[0] || clean;
+  if (firstPara.length <= maxLen) {
+    return firstPara + ". Check the chat for full details.";
+  }
+
+  // Truncate at last sentence boundary within limit
+  const truncated = clean.slice(0, maxLen);
+  const lastPeriod = truncated.lastIndexOf(".");
+  if (lastPeriod > 100) {
+    return truncated.slice(0, lastPeriod + 1) + " Check the chat for full details.";
+  }
+
+  return truncated + "... Check the chat for full details.";
 }
 
 function stopAllAudio() {
@@ -306,7 +336,9 @@ export function useVoiceChat(projectId?: string) {
         store.addMessage(userMsg);
         store.addMessage(assistantMsg);
 
-        // Speak the response
+        // Use backend summary if available, otherwise trim locally
+        const spokenText = data.spoken_summary || trimForSpeech(data.reply);
+
         setState((s) => ({
           ...s,
           isProcessing: false,
@@ -314,7 +346,7 @@ export function useVoiceChat(projectId?: string) {
         }));
 
         try {
-          await speak(data.reply, data.audio_base64);
+          await speak(spokenText, data.audio_base64);
         } catch {
           // TTS failed silently
         }

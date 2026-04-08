@@ -43,5 +43,5 @@ export const useChatStore = create<ChatState>((set) => ({
       }
       return { messages };
     }),
-  clearMessages: () => set({ messages: [], activeAgent: null, currentPhase: null }),
+  clearMessages: () => set({ messages: [], activeAgent: null }),
 }));

@@ -39,6 +39,28 @@ async def _transcribe_with_gemini(audio_bytes: bytes, filename: str) -> str:
     return response.text.strip()
 
 
+# ── Voice Summary ──────────────────────────────────────────────
+
+async def _summarize_for_voice(text: str) -> str:
+    """Summarize a long agent response into a concise spoken version."""
+    from app.agents.base.llm import chat_completion
+
+    response = await chat_completion(
+        model="gemini-2.5-flash",
+        system=(
+            "You are Cleo, a voice assistant. Summarize the following agent "
+            "response into 2-3 natural spoken sentences. Be conversational "
+            "and friendly. Mention the key takeaway and tell the user they "
+            "can read the full details in the chat. Do NOT use markdown, "
+            "bullet points, or formatting — just plain spoken sentences."
+        ),
+        messages=[{"role": "user", "content": text}],
+        max_tokens=256,
+    )
+    summary = response.text.strip()
+    return summary if summary else text[:300] + "... You can read the full details in the chat."
+
+
 # ── ElevenLabs TTS ─────────────────────────────────────────────────
 
 async def _elevenlabs_tts(text: str) -> bytes:
@@ -129,22 +151,29 @@ async def voice_chat(
         )
     )
 
+    full_reply = chat_response.message
+
+    # Step 3: Summarize long responses for voice
+    spoken_text = full_reply
+    if len(full_reply) > 400:
+        spoken_text = await _summarize_for_voice(full_reply)
+
     result = {
         "transcript": user_text,
-        "reply": chat_response.message,
+        "reply": full_reply,
+        "spoken_summary": spoken_text,
         "conversation_id": chat_response.conversation_id,
         "agent_name": chat_response.metadata.get("agent_name"),
         "phase": chat_response.metadata.get("phase"),
         "metadata": chat_response.metadata,
     }
 
-    # Step 3: TTS with ElevenLabs (if configured)
+    # Step 4: TTS with ElevenLabs (if configured) — use spoken summary
     if settings.ELEVENLABS_API_KEY:
         try:
-            tts_bytes = await _elevenlabs_tts(chat_response.message)
+            tts_bytes = await _elevenlabs_tts(spoken_text)
             result["audio_base64"] = base64.b64encode(tts_bytes).decode()
         except Exception:
-            # Fall back to browser TTS on the frontend
             result["audio_base64"] = None
 
     return result

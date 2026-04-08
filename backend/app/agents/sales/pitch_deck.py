@@ -55,7 +55,7 @@ class PitchDeckAgent(BaseAgent):
 
         response = await chat_completion(
             model=self.model,
-            max_tokens=4096,
+            max_tokens=8192,
             system=self.system_prompt,
             messages=[
                 {
