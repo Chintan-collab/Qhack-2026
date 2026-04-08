@@ -1,5 +1,6 @@
 import type { ChatRequest, ChatResponse, Conversation } from "../types/chat";
 import type { AgentInfo } from "../types/agent";
+import type { Project, ProjectCreate, Deliverable } from "../types/project";
 
 const BASE_URL = "/api/v1";
 
@@ -30,5 +31,35 @@ export const api = {
   agents: {
     list: () => request<AgentInfo[]>("/agents/"),
     get: (id: string) => request<AgentInfo>(`/agents/${id}`),
+  },
+
+  projects: {
+    list: () => request<Project[]>("/projects/"),
+    get: (id: string) => request<Project>(`/projects/${id}`),
+    create: (data: ProjectCreate) =>
+      request<Project>("/projects/", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<ProjectCreate>) =>
+      request<Project>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  },
+
+  deliverables: {
+    get: (id: string) => request<Deliverable>(`/deliverables/${id}`),
+    listByProject: (projectId: string) =>
+      request<Deliverable[]>(`/deliverables/project/${projectId}`),
+    downloadUrl: (id: string) => `${BASE_URL}/deliverables/${id}/download`,
+  },
+
+  voice: {
+    transcribe: async (blob: Blob): Promise<string> => {
+      const formData = new FormData();
+      formData.append("audio", blob, "recording.webm");
+      const response = await fetch(`${BASE_URL}/voice/transcribe`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Transcription failed");
+      const data = await response.json();
+      return data.text;
+    },
   },
 };

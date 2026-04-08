@@ -1,5 +1,7 @@
 import clsx from "clsx";
+import ReactMarkdown from "react-markdown";
 import type { Message } from "../../types/chat";
+import AgentBadge from "../agents/AgentBadge";
 
 interface Props {
   message: Message;
@@ -17,9 +19,17 @@ export default function MessageBubble({ message }: Props) {
         )}
       >
         {message.agentName && (
-          <div className="text-xs text-gray-400 mb-1">{message.agentName}</div>
+          <div className="mb-1">
+            <AgentBadge agentName={message.agentName} />
+          </div>
         )}
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        {isUser ? (
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : (
+          <div className="prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );
