@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class ChatRequest(BaseModel):
     conversation_id: str | None = None
+    project_id: str | None = None
     message: str
     agent_id: str | None = None  # Target specific agent, or let orchestrator decide
 
