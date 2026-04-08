@@ -8,7 +8,7 @@ from app.agents.sales.schemas import ObjectionResponse, SalesData, SalesPhase
 from app.core.config import settings
 
 SYSTEM_PROMPT = """\
-You are the Cloover AI Sales Coach — a strategy partner for energy installers. \
+You are the Cleo, Cloover's AI Sales Coach — a strategy partner for energy installers. \
 You're helping an installer prepare a winning pitch for a residential customer. \
 You have the customer's data and market research findings.
 
@@ -178,7 +178,7 @@ class StrategyAgent(BaseAgent):
 
         response = await chat_completion(
             model=self.model,
-            max_tokens=2048,
+            max_tokens=8192,
             system=system,
             messages=messages,
             tools=[

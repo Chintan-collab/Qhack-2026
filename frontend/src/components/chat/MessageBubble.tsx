@@ -15,7 +15,7 @@ export default function MessageBubble({ message }: Props) {
     <div className={clsx("flex gap-3", isUser ? "justify-end" : "justify-start")}>
       {/* Agent avatar */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg shadow-blue-500/20">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3535F3] to-[#5252F5] flex items-center justify-center flex-shrink-0 mt-1 shadow-lg shadow-[#3535F3]/20">
           <Bot className="w-4 h-4 text-white" />
         </div>
       )}
@@ -33,7 +33,7 @@ export default function MessageBubble({ message }: Props) {
           className={clsx(
             "rounded-2xl px-4 py-3 text-sm leading-relaxed",
             isUser
-              ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-md"
+              ? "bg-gradient-to-r from-[#3535F3] to-[#2828D0] text-white rounded-br-md"
               : "bg-gray-800/80 text-gray-100 border border-gray-700/40 rounded-bl-md",
           )}
         >

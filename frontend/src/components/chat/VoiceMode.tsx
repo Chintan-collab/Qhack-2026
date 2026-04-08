@@ -64,8 +64,8 @@ export default function VoiceMode({ projectId }: Props) {
         <div className={clsx(
           "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-[120px] transition-all duration-1000",
           isRecording && "w-96 h-96 bg-red-500/20",
-          isProcessing && "w-80 h-80 bg-yellow-500/15",
-          isSpeaking && "w-96 h-96 bg-purple-500/20",
+          isProcessing && "w-80 h-80 bg-[#4747F5]/15",
+          isSpeaking && "w-96 h-96 bg-[#5555F7]/20",
         )} />
       </div>
 
@@ -92,8 +92,8 @@ export default function VoiceMode({ projectId }: Props) {
           className={clsx(
             "absolute inset-0 rounded-full transition-all duration-700",
             orbState === "recording" && "animate-ping bg-red-500/30 scale-150",
-            orbState === "processing" && "animate-spin-slow bg-gradient-to-r from-yellow-500/20 to-orange-500/20 scale-125",
-            orbState === "speaking" && "animate-pulse bg-purple-500/25 scale-140",
+            orbState === "processing" && "animate-spin-slow bg-gradient-to-r from-[#6565FF]/20 to-[#3535F3]/20 scale-125",
+            orbState === "speaking" && "animate-pulse bg-[#5555F7]/25 scale-140",
           )}
           style={{ margin: "-20px" }}
         />
@@ -101,7 +101,7 @@ export default function VoiceMode({ projectId }: Props) {
           className={clsx(
             "absolute inset-0 rounded-full transition-all duration-500",
             orbState === "recording" && "animate-pulse bg-red-500/20 scale-130",
-            orbState === "speaking" && "animate-pulse bg-purple-500/15 scale-120 animation-delay-200",
+            orbState === "speaking" && "animate-pulse bg-[#5555F7]/15 scale-120 animation-delay-200",
           )}
           style={{ margin: "-10px" }}
         />
@@ -111,11 +111,11 @@ export default function VoiceMode({ projectId }: Props) {
           className={clsx(
             "w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 relative",
             "shadow-2xl",
-            orbState === "idle" && "bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 hover:scale-105 hover:shadow-blue-500/30 shadow-blue-500/20",
+            orbState === "idle" && "bg-gradient-to-br from-[#3535F3] via-[#2828D0] to-[#1e1ea0] hover:scale-105 hover:shadow-[#3535F3]/30 shadow-[#3535F3]/20",
             orbState === "idle-active" && "bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800 hover:scale-105 shadow-gray-500/20",
             orbState === "recording" && "bg-gradient-to-br from-red-500 via-red-600 to-rose-700 scale-110 shadow-red-500/40",
-            orbState === "processing" && "bg-gradient-to-br from-yellow-500 via-amber-600 to-orange-600 shadow-amber-500/40",
-            orbState === "speaking" && "bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-700 scale-105 shadow-purple-500/40",
+            orbState === "processing" && "bg-gradient-to-br from-[#5555F7] via-[#4747F5] to-[#3535F3] shadow-[#3535F3]/40",
+            orbState === "speaking" && "bg-gradient-to-br from-[#4747F5] via-[#3535F3] to-[#2828D0] scale-105 shadow-[#3535F3]/40",
           )}
         >
           {/* Inner glow */}

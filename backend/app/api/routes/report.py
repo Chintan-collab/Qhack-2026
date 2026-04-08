@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.sales.schemas import SalesData, SalesPhase
 from app.core.config import settings
 from app.db.session import get_db
+from app.models.conversation import Conversation, Message
 from app.models.project import Project
 
 router = APIRouter()
@@ -215,9 +216,41 @@ async def generate_report(
     data_dump = sd.model_dump(exclude_none=True, exclude_defaults=True)
     data_dump.pop("phase", None)
 
+    # Load full conversation history for this project
+    chat_history = ""
+    conv_result = await db.execute(
+        select(Conversation)
+        .where(Conversation.project_id == project_id)
+        .order_by(Conversation.updated_at.desc())
+        .limit(1)
+    )
+    conv = conv_result.scalar_one_or_none()
+    if conv:
+        msg_result = await db.execute(
+            select(Message)
+            .where(Message.conversation_id == conv.id)
+            .order_by(Message.created_at.asc())
+        )
+        messages = msg_result.scalars().all()
+        chat_lines = []
+        for msg in messages:
+            role = msg.role.upper()
+            agent = f" ({msg.agent_name})" if msg.agent_name else ""
+            chat_lines.append(f"[{role}{agent}]: {msg.content}")
+        chat_history = "\n\n".join(chat_lines)
+
     user_prompt = (
         f"Generate a sales report for this customer.\n\n"
         f"Customer & research data:\n{json.dumps(data_dump, indent=2, default=str)}\n\n"
+    )
+    if chat_history:
+        user_prompt += (
+            f"Full conversation history between the AI Sales Coach and the installer:\n"
+            f"---\n{chat_history}\n---\n\n"
+            f"Use the conversation above to extract all research findings, strategy "
+            f"decisions, objections discussed, and any installer preferences.\n\n"
+        )
+    user_prompt += (
         f"Confidence level: {confidence}/100\n"
         f"Set the confidence field to {confidence}."
     )

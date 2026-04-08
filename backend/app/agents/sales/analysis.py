@@ -501,7 +501,7 @@ class AnalysisAgent(BaseAgent):
         try:
             response = await chat_completion(
                 model=self.model,
-                max_tokens=2048,
+                max_tokens=8192,
                 system=system,
                 messages=messages,
                 tools=[STORE_ANALYSIS_TOOL],

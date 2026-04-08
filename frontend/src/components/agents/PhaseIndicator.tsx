@@ -29,8 +29,8 @@ export default function PhaseIndicator({ status }: Props) {
               <div
                 className={clsx(
                   "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-500 border-2",
-                  isComplete && "bg-emerald-500 border-emerald-500 text-white scale-100",
-                  isCurrent && "bg-blue-600 border-blue-400 text-white scale-110 shadow-lg shadow-blue-500/40",
+                  isComplete && "bg-[#3535F3] border-[#3535F3] text-white scale-100",
+                  isCurrent && "bg-[#3535F3] border-[#4747F5] text-white scale-110 shadow-lg shadow-[#3535F3]/40",
                   !isComplete && !isCurrent && "bg-gray-800 border-gray-600 text-gray-500",
                 )}
               >
@@ -39,8 +39,8 @@ export default function PhaseIndicator({ status }: Props) {
               <span
                 className={clsx(
                   "text-[10px] font-semibold tracking-wide uppercase transition-colors duration-300",
-                  isComplete && "text-emerald-400",
-                  isCurrent && "text-blue-400",
+                  isComplete && "text-[#6565FF]",
+                  isCurrent && "text-[#6565FF]",
                   !isComplete && !isCurrent && "text-gray-600",
                 )}
               >
@@ -54,7 +54,7 @@ export default function PhaseIndicator({ status }: Props) {
                 <div
                   className={clsx(
                     "absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out",
-                    isComplete ? "w-full bg-emerald-500" : isCurrent ? "w-1/2 bg-blue-500 animate-pulse" : "w-0",
+                    isComplete ? "w-full bg-[#3535F3]" : isCurrent ? "w-1/2 bg-[#3535F3] animate-pulse" : "w-0",
                   )}
                 />
               </div>

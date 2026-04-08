@@ -14,26 +14,37 @@ export function useChat(projectId?: string) {
     if (!projectId || initializedRef.current) return;
     initializedRef.current = true;
 
-    // Clear previous chat state
+    // Clear previous chat state but keep phase until loaded
     store.clearMessages();
     store.setActiveConversation(null);
 
-    // Load project phase
+    // Load project phase immediately
     api.projects.get(projectId).then((project) => {
-      const phaseMap: Record<string, string> = {
-        data_gathering: "data_gathering",
-        research: "research",
-        strategy: "strategy",
-        deliverable: "deliverable",
-        complete: "complete",
-      };
-      store.setCurrentPhase(phaseMap[project.status] ?? "data_gathering");
-    }).catch(() => {});
+      store.setCurrentPhase(project.status ?? "data_gathering");
+    }).catch(() => {
+      store.setCurrentPhase("data_gathering");
+    });
 
-    // Resume existing conversation if any
-    api.projects.getConversation(projectId).then((convId) => {
+    // Resume existing conversation and load messages
+    api.projects.getConversation(projectId).then(async (convId) => {
       if (convId) {
         store.setActiveConversation(convId);
+        // Load existing messages from DB
+        try {
+          const conv = await api.conversations.get(convId);
+          const messages: Message[] = (conv as any).messages?.map((m: any) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            agentName: m.agent_name,
+            timestamp: m.created_at || new Date().toISOString(),
+          })) || [];
+          for (const msg of messages) {
+            store.addMessage(msg);
+          }
+        } catch {
+          // No messages yet — fresh conversation
+        }
       }
     });
   }, [projectId, store]);
@@ -49,14 +60,14 @@ export function useChat(projectId?: string) {
       store.addMessage(userMessage);
 
       const response = await api.chat.send({
-        conversationId: store.activeConversationId ?? undefined,
-        projectId: projectId ?? undefined,
+        conversation_id: store.activeConversationId ?? undefined,
+        project_id: projectId ?? undefined,
         message: content,
       });
 
       // Store the conversation ID for subsequent messages
       if (!store.activeConversationId) {
-        store.setActiveConversation(response.conversationId);
+        store.setActiveConversation(response.conversation_id);
       }
 
       // Track phase changes

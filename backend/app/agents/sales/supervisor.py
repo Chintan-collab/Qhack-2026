@@ -46,7 +46,7 @@ def _save_sales_data(
 
 
 class SalesSupervisor(AgentOrchestrator):
-    """Phase-based orchestrator for the Cloover AI Sales Coach.
+    """Phase-based orchestrator for the Cleo, Cloover's AI Sales Coach.
 
     Key behaviors:
     - If lead data is already complete, skip data gathering → research

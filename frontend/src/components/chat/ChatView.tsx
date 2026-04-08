@@ -57,14 +57,14 @@ export default function ChatView() {
   }, [projectId, navigate]);
 
   return (
-    <div className="flex flex-col flex-1 bg-gray-950">
-      {/* Header */}
-      <header className="border-b border-gray-800/60 bg-gray-900/80 backdrop-blur-md px-6 py-3">
+    <div className="flex flex-col flex-1 min-h-0 relative" style={{ background: "radial-gradient(circle at top left, rgba(53,53,243,0.08), transparent 40%), radial-gradient(circle at bottom right, rgba(71,71,245,0.06), transparent 40%), linear-gradient(135deg, #07111f 0%, #0b1728 45%, #111827 100%)" }}>
+      {/* Header — fixed at top */}
+      <header className="sticky top-0 z-10 shrink-0 border-b border-gray-800/60 bg-gray-900/95 backdrop-blur-md px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-4 h-4 text-blue-400" />
+            <Sparkles className="w-4 h-4 text-[#6565FF]" />
             <span className="text-sm font-medium text-gray-300">
-              {projectId ? "AI Sales Coach" : "Multi-Agent Chat"}
+              {projectId ? "Cleo — Sales Coach" : "Cleo"}
             </span>
             {activeAgent && <AgentBadge agentName={activeAgent} />}
           </div>
@@ -74,7 +74,7 @@ export default function ChatView() {
               <button
                 onClick={handleGenerateReport}
                 disabled={isGeneratingReport}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#3535F3] to-[#4747F5] hover:from-[#4747F5] hover:to-[#5555F7] text-white transition-all shadow-lg shadow-[#3535F3]/20 disabled:opacity-50"
               >
                 {isGeneratingReport ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -116,16 +116,14 @@ export default function ChatView() {
         </div>
 
         {/* Phase indicator with flash animation */}
-        {projectId && (
-          <div
-            className={clsx(
-              "mt-4 mb-1 transition-all duration-500",
-              phaseFlash && "scale-[1.02] brightness-125",
-            )}
-          >
-            <PhaseIndicator status={displayPhase} />
-          </div>
-        )}
+        <div
+          className={clsx(
+            "mt-4 mb-1 transition-all duration-500",
+            phaseFlash && "scale-[1.02] brightness-125",
+          )}
+        >
+          <PhaseIndicator status={displayPhase} />
+        </div>
       </header>
 
       {/* Content */}

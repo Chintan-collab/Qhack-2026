@@ -19,6 +19,14 @@ async def create_project(
     data: ProjectCreate, db: AsyncSession = Depends(get_db)
 ) -> Project:
     project = Project(**data.model_dump(exclude_none=True))
+    # Auto-advance past data_gathering if lead data is already complete
+    if (
+        project.customer_name
+        and project.product_interest
+        and project.house_type
+        and project.heating_type
+    ):
+        project.status = "research"
     db.add(project)
     await db.commit()
     await db.refresh(project)

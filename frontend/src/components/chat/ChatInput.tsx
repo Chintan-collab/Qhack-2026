@@ -50,12 +50,12 @@ export default function ChatInput({ onSend, disabled }: Props) {
           onChange={(e) => setInput(e.target.value)}
           placeholder={isRecording ? "Listening..." : "Type a message..."}
           disabled={disabled || isRecording}
-          className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+          className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#3535F3]"
         />
         <button
           type="submit"
           disabled={disabled || !input.trim() || isRecording}
-          className="px-4 py-2 bg-blue-600 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition"
+          className="px-4 py-2 bg-[#3535F3] rounded-xl text-sm hover:bg-[#2828D0] disabled:opacity-50 transition"
         >
           Send
         </button>

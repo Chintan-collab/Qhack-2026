@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { generateReport } from "../utils/generatePdf";
 import {
   ArrowLeft,
   Download,
@@ -17,11 +18,22 @@ import {
 
 export default function ReportPage() {
   const navigate = useNavigate();
+  const [isExporting, setIsExporting] = useState(false);
 
   const report = useMemo(() => {
     const raw = localStorage.getItem("reportData");
     return raw ? JSON.parse(raw) : null;
   }, []);
+
+  const handleExportPdf = () => {
+    if (!report) return;
+    setIsExporting(true);
+    try {
+      generateReport(report);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (!report) {
     return (
@@ -66,9 +78,13 @@ export default function ReportPage() {
           </button>
 
           <div className="report-topbar-actions">
-            <button className="secondary-btn" onClick={() => window.print()}>
+            <button
+              className="secondary-btn"
+              onClick={handleExportPdf}
+              disabled={isExporting}
+            >
               <Download size={18} />
-              Export / Print
+              {isExporting ? "Exporting..." : "Export PDF"}
             </button>
           </div>
         </motion.div>

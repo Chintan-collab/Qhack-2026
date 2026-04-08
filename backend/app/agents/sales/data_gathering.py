@@ -8,7 +8,7 @@ from app.agents.sales.schemas import SalesData, SalesPhase
 from app.core.config import settings
 
 SYSTEM_PROMPT = """\
-You are the Cloover AI Sales Coach — helping energy installers prepare \
+You are the Cleo, Cloover's AI Sales Coach — helping energy installers prepare \
 winning pitches for residential customers (solar panels, heat pumps, \
 wallboxes, batteries). You speak directly to the installer.
 
@@ -137,7 +137,7 @@ class DataGatheringAgent(BaseAgent):
 
         response = await chat_completion(
             model=self.model,
-            max_tokens=1024,
+            max_tokens=4096,
             system=system,
             messages=messages,
             tools=[EXTRACT_TOOL, COMPLETE_TOOL],

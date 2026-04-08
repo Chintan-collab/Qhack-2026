@@ -16,7 +16,7 @@ from app.agents.sales.schemas import (
 from app.core.config import settings
 
 SYSTEM_PROMPT = """\
-You are the Cloover AI Sales Coach — a research assistant helping an \
+You are the Cleo, Cloover's AI Sales Coach — a research assistant helping an \
 energy installer prepare for a customer visit. You speak directly to \
 the installer (not the customer).
 
@@ -187,7 +187,7 @@ class ResearchAgent(BaseAgent):
 
         # Step 2: Synthesize with LLM
         synthesis_prompt = (
-            f"You are the Cloover AI Sales Coach researching for an installer.\n\n"
+            f"You are the Cleo, Cloover's AI Sales Coach researching for an installer.\n\n"
             f"Customer data:\n{json.dumps(known, indent=2)}\n\n"
             f"Web search results:\n{json.dumps(search_results, indent=2)}\n\n"
             f"Based on these search results, provide a clear research briefing "
@@ -247,7 +247,7 @@ class ResearchAgent(BaseAgent):
         )
         response = await chat_completion(
             model=self.model,
-            max_tokens=2048,
+            max_tokens=8192,
             system=system,
             messages=[{"role": "user", "content": message.content}],
             tools=[STORE_RESEARCH_TOOL, MARK_RESEARCH_COMPLETE_TOOL],
