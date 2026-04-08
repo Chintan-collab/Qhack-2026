@@ -4,28 +4,42 @@ from dataclasses import dataclass
 import anthropic
 
 from app.agents.base.agent import BaseAgent
-from app.agents.base.types import AgentContext, AgentMessage, MessageRole
-from app.agents.sales.schemas import CompetitorInfo, SalesData, SalesPhase
+from app.agents.base.types import (
+    AgentContext,
+    AgentMessage,
+    MessageRole,
+)
+from app.agents.sales.schemas import (
+    CompetitorInfo,
+    SalesData,
+    SalesPhase,
+)
 from app.core.config import settings
 
-SYSTEM_PROMPT = """You are a market research analyst. Given information about a company and its \
-products, you conduct competitive analysis and market research.
-
-You have access to a `web_search` tool to find real-time information. Use it to:
-1. Search for direct competitors
-2. Find market trends and industry data
-3. Analyze competitive positioning
-4. Identify market size and growth
-
-After each search, summarize what you found and update the research data. When you have gathered \
-enough competitive intelligence (at least 2-3 competitors and key market trends), call \
-`mark_research_complete`.
-
-Be thorough but efficient. Focus on actionable insights for the sales team."""
+SYSTEM_PROMPT = (
+    "You are a market research analyst. Given information "
+    "about a company and its products, you conduct competitive "
+    "analysis and market research.\n\n"
+    "You have access to a `web_search` tool to find real-time "
+    "information. Use it to:\n"
+    "1. Search for direct competitors\n"
+    "2. Find market trends and industry data\n"
+    "3. Analyze competitive positioning\n"
+    "4. Identify market size and growth\n\n"
+    "After each search, summarize what you found and update "
+    "the research data. When you have gathered enough "
+    "competitive intelligence (at least 2-3 competitors and "
+    "key market trends), call `mark_research_complete`.\n\n"
+    "Be thorough but efficient. Focus on actionable insights "
+    "for the sales team."
+)
 
 SEARCH_TOOL = {
     "name": "web_search",
-    "description": "Search the internet for market research, competitor info, and industry trends",
+    "description": (
+        "Search the internet for market research, "
+        "competitor info, and industry trends"
+    ),
     "input_schema": {
         "type": "object",
         "properties": {
@@ -46,8 +60,14 @@ STORE_COMPETITOR_TOOL = {
         "properties": {
             "name": {"type": "string"},
             "description": {"type": "string"},
-            "strengths": {"type": "array", "items": {"type": "string"}},
-            "weaknesses": {"type": "array", "items": {"type": "string"}},
+            "strengths": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "weaknesses": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
             "market_share": {"type": "string"},
         },
         "required": ["name"],
@@ -56,13 +76,22 @@ STORE_COMPETITOR_TOOL = {
 
 STORE_TRENDS_TOOL = {
     "name": "store_market_trends",
-    "description": "Store market trends and insights discovered during research",
+    "description": (
+        "Store market trends and insights "
+        "discovered during research"
+    ),
     "input_schema": {
         "type": "object",
         "properties": {
-            "trends": {"type": "array", "items": {"type": "string"}},
+            "trends": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
             "market_size": {"type": "string"},
-            "insights": {"type": "array", "items": {"type": "string"}},
+            "insights": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
         },
     },
 }
@@ -73,11 +102,21 @@ COMPLETE_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "summary": {"type": "string", "description": "Summary of research findings"},
+            "summary": {
+                "type": "string",
+                "description": "Summary of research findings",
+            },
         },
         "required": ["summary"],
     },
 }
+
+ALL_TOOLS = [
+    SEARCH_TOOL,
+    STORE_COMPETITOR_TOOL,
+    STORE_TRENDS_TOOL,
+    COMPLETE_TOOL,
+]
 
 
 def _get_sales_data(context: AgentContext) -> SalesData:
@@ -89,35 +128,53 @@ def _get_sales_data(context: AgentContext) -> SalesData:
     return SalesData()
 
 
-def _save_sales_data(context: AgentContext, data: SalesData) -> None:
+def _save(context: AgentContext, data: SalesData) -> None:
     context.shared_state["sales_data"] = data.model_dump()
 
 
 @dataclass
 class ResearchAgent(BaseAgent):
     name: str = "research"
-    description: str = "Performs competitive analysis and market research using internet search"
+    description: str = (
+        "Performs competitive analysis and market research"
+    )
     system_prompt: str = SYSTEM_PROMPT
 
-    async def execute(self, context: AgentContext, message: AgentMessage) -> AgentMessage:
-        sales_data = _get_sales_data(context)
-        client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    def __post_init__(self) -> None:
+        from app.agents.tools.web_search import WebSearchTool
+        self._search_tool = WebSearchTool()
 
-        # Build context about what we know
+    async def execute(
+        self,
+        context: AgentContext,
+        message: AgentMessage,
+    ) -> AgentMessage:
+        sales_data = _get_sales_data(context)
+        client = anthropic.AsyncAnthropic(
+            api_key=settings.ANTHROPIC_API_KEY
+        )
+
         known = json.dumps(
             {
                 "company": sales_data.company_name,
-                "products": [p.model_dump() for p in sales_data.products],
+                "products": [
+                    p.model_dump() for p in sales_data.products
+                ],
                 "target_market": sales_data.target_market,
                 "industry": sales_data.industry,
             },
             indent=2,
         )
-        system = self.system_prompt + f"\n\nCompany data collected:\n{known}"
+        system = (
+            self.system_prompt
+            + f"\n\nCompany data collected:\n{known}"
+        )
 
-        messages = [{"role": "user", "content": message.content}]
+        messages = [
+            {"role": "user", "content": message.content}
+        ]
 
-        # Multi-step agent loop: LLM can call tools, we respond, it continues
+        # Multi-step agentic loop
         all_text = ""
         for _ in range(settings.MAX_AGENT_STEPS):
             response = await client.messages.create(
@@ -125,34 +182,47 @@ class ResearchAgent(BaseAgent):
                 max_tokens=2048,
                 system=system,
                 messages=messages,
-                tools=[SEARCH_TOOL, STORE_COMPETITOR_TOOL, STORE_TRENDS_TOOL, COMPLETE_TOOL],
+                tools=ALL_TOOLS,
             )
 
-            # Collect text and process tool calls
             tool_results = []
             for block in response.content:
                 if block.type == "text":
                     all_text += block.text
                 elif block.type == "tool_use":
-                    result = self._handle_tool(block.name, block.input, sales_data)
+                    result = await self._handle_tool(
+                        block.name,
+                        block.input,
+                        sales_data,
+                    )
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
                         "content": result,
                     })
 
-            _save_sales_data(context, sales_data)
+            _save(context, sales_data)
 
-            # If no tool calls or stop reason is end_turn, we're done
-            if response.stop_reason == "end_turn" or not tool_results:
+            if (
+                response.stop_reason == "end_turn"
+                or not tool_results
+            ):
                 break
 
-            # Continue the conversation with tool results
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
+            messages.append({
+                "role": "assistant",
+                "content": response.content,
+            })
+            messages.append({
+                "role": "user",
+                "content": tool_results,
+            })
 
         if not all_text.strip():
-            all_text = "I've completed the market research. Let me now help develop your sales strategy."
+            all_text = (
+                "I've completed the market research. "
+                "Let me now help develop your sales strategy."
+            )
 
         return AgentMessage(
             role=MessageRole.ASSISTANT,
@@ -161,15 +231,18 @@ class ResearchAgent(BaseAgent):
             metadata={"phase": sales_data.phase.value},
         )
 
-    def _handle_tool(self, tool_name: str, tool_input: dict, sales_data: SalesData) -> str:
+    async def _handle_tool(
+        self,
+        tool_name: str,
+        tool_input: dict,
+        sales_data: SalesData,
+    ) -> str:
         if tool_name == "web_search":
-            # TODO: Replace with actual web search API call
             query = tool_input.get("query", "")
-            return (
-                f"[Search results for '{query}' - integrate a search API "
-                f"(Tavily/SerpAPI) to get real results. For now, the LLM should "
-                f"use its training data to provide research insights.]"
+            result = await self._search_tool.execute(
+                query=query
             )
+            return result.output
 
         if tool_name == "store_competitor":
             competitor = CompetitorInfo(
@@ -179,8 +252,8 @@ class ResearchAgent(BaseAgent):
                 weaknesses=tool_input.get("weaknesses", []),
                 market_share=tool_input.get("market_share", ""),
             )
-            existing_names = {c.name for c in sales_data.competitors}
-            if competitor.name not in existing_names:
+            names = {c.name for c in sales_data.competitors}
+            if competitor.name not in names:
                 sales_data.competitors.append(competitor)
             return f"Stored competitor: {competitor.name}"
 
@@ -197,11 +270,14 @@ class ResearchAgent(BaseAgent):
 
         if tool_name == "mark_research_complete":
             sales_data.phase = SalesPhase.STRATEGY
-            return f"Research complete: {tool_input.get('summary', '')}"
+            summary = tool_input.get("summary", "")
+            return f"Research complete: {summary}"
 
         return "Unknown tool"
 
-    async def plan(self, context: AgentContext, task: str) -> list[str]:
+    async def plan(
+        self, context: AgentContext, task: str
+    ) -> list[str]:
         return [
             "Search for direct competitors",
             "Analyze competitive landscape",
@@ -209,5 +285,7 @@ class ResearchAgent(BaseAgent):
             "Summarize findings",
         ]
 
-    async def can_handle(self, message: AgentMessage) -> float:
+    async def can_handle(
+        self, message: AgentMessage
+    ) -> float:
         return 0.2

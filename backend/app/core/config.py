@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # Search API (Tavily, SerpAPI, etc.)
+    SEARCH_API_KEY: str = ""
+    SEARCH_PROVIDER: str = "tavily"
+
     # Agent defaults
     DEFAULT_MODEL: str = "claude-sonnet-4-20250514"
     MAX_AGENT_STEPS: int = 25

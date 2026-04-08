@@ -4,7 +4,7 @@ import { api } from "../services/api";
 import { createChatSocket } from "../services/websocket";
 import type { Message, StreamEvent } from "../types/chat";
 
-export function useChat() {
+export function useChat(projectId?: string) {
   const store = useChatStore();
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -20,6 +20,7 @@ export function useChat() {
 
       const response = await api.chat.send({
         conversationId: store.activeConversationId ?? undefined,
+        projectId: projectId ?? undefined,
         message: content,
       });
 
@@ -27,16 +28,23 @@ export function useChat() {
         store.setActiveConversation(response.conversationId);
       }
 
+      // Extract phase from metadata if present
+      const phase = response.metadata?.phase as string | undefined;
+      if (phase) {
+        store.setCurrentPhase(phase);
+      }
+
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
         content: response.message,
+        agentName: response.metadata?.agent_name as string | undefined,
         timestamp: new Date().toISOString(),
         metadata: response.metadata,
       };
       store.addMessage(assistantMessage);
     },
-    [store],
+    [store, projectId],
   );
 
   const startStreaming = useCallback(
@@ -49,6 +57,9 @@ export function useChat() {
           switch (event.type) {
             case "agent_selected":
               store.setActiveAgent(event.agent ?? null);
+              break;
+            case "phase_changed":
+              store.setCurrentPhase(event.phase ?? null);
               break;
             case "message":
               store.appendToLastMessage(event.content ?? "");
@@ -79,6 +90,7 @@ export function useChat() {
     messages: store.messages,
     isStreaming: store.isStreaming,
     activeAgent: store.activeAgent,
+    currentPhase: store.currentPhase,
     sendMessage,
     startStreaming,
     stopStreaming,
