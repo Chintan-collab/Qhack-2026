@@ -30,8 +30,13 @@ When the user provides information, call `extract_customer_data` to structure it
 When you have enough data (at minimum: name, product interest, house type, and \
 heating type), call `mark_gathering_complete`.
 
-If the customer data was pre-loaded from a lead, acknowledge what you already \
-know and ask only about the missing fields.
+If customer data was pre-loaded from a lead, DO NOT re-ask for information you \
+already have. Start by briefly acknowledging what you know (e.g. "I see you're \
+interested in solar panels for your home in Munich…") and then ONLY ask about \
+the specific missing fields. Never repeat questions for data already collected.
+
+When most key fields are filled, call `mark_gathering_complete` right away \
+instead of asking more questions.
 
 Be conversational and professional. Do NOT ask all questions at once."""
 
