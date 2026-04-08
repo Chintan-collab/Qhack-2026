@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # LLM Providers
     ANTHROPIC_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
 
     # Search API (Tavily, SerpAPI, etc.)
     SEARCH_API_KEY: str = ""
