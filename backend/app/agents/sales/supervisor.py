@@ -46,6 +46,12 @@ HANDOFF_PROMPTS: dict[SalesPhase, str] = {
         "subsidy+financing scenarios for each tier, and flag age-based "
         "suitability alerts."
     ),
+    SalesPhase.STRATEGY: (
+        "Research and analysis are complete. Now build the full sales "
+        "strategy — present the value proposition, savings estimate, "
+        "key talking points, financing recommendation, and objection "
+        "handling in one comprehensive briefing."
+    ),
     SalesPhase.DELIVERABLE: (
         "The sales strategy has been finalized. "
         "Generate the personalized pitch deck for the customer."

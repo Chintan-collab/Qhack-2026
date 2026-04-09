@@ -49,9 +49,7 @@ export default function ChatView() {
 
   const canGenerateReport = projectId && (
     currentPhase === "deliverable" ||
-    currentPhase === "complete" ||
-    currentPhase === "strategy" ||
-    currentPhase === "financial"
+    currentPhase === "complete"
   );
 
   const phaseStatusMap: Record<string, string> = {
