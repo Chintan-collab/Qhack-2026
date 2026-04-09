@@ -474,25 +474,6 @@ export default function LeadPage() {
 
           {/* Right column */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px", alignSelf: "start" }}>
-            {/* Sales angle */}
-            <div style={{
-              padding: "28px", borderRadius: "20px", background: "#ffffff",
-              border: "1px solid #e5e7eb", boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
-            }}>
-              <p style={{ margin: "0 0 4px", fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#3535F3", fontWeight: 700 }}>
-                Suggested Sales Angle
-              </p>
-              <h3 style={{ margin: "0 0 12px", fontSize: "1.1rem", fontWeight: 700, color: "#0f172a" }}>
-                How to approach this lead
-              </h3>
-              <p style={{ margin: 0, color: "#6b7280", lineHeight: 1.7, fontSize: "0.92rem" }}>
-                Focus on the customer's main priority, explain the long-term
-                value of the selected product, and connect the recommendation
-                to their household size, energy usage, current heating setup,
-                and financial profile.
-              </p>
-            </div>
-
             {/* Documents */}
             <DocumentsCard projectId={projectId} ensureProject={ensureProject} />
           </div>
