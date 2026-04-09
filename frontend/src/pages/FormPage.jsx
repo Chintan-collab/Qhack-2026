@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -99,6 +100,22 @@ const leads = [
 
 export default function FormPage() {
   const navigate = useNavigate();
+  const [projects, setProjects] = useState([]);
+
+  // Fetch projects created through chat (not from hardcoded leads)
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/projects/`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // Filter out projects that match hardcoded lead names
+          const leadNames = leads.map((l) => l.name);
+          const chatProjects = data.filter((p) => !leadNames.includes(p.name));
+          setProjects(chatProjects);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const formatProduct = (value) => {
     if (!value) return "—";
@@ -175,8 +192,8 @@ export default function FormPage() {
           transition={{ duration: 0.55, delay: 0.08 }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <h2 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>Available Leads</h2>
-            <span style={{ color: "#64748b", fontSize: "0.9rem" }}>{leads.length} profiles</span>
+            <h2 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>All Leads</h2>
+            <span style={{ color: "#64748b", fontSize: "0.9rem" }}>{leads.length + projects.length} profiles</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -271,6 +288,105 @@ export default function FormPage() {
                 )}
               </motion.button>
             ))}
+
+            {/* Chat-created projects in same list */}
+              {projects.map((proj, i) => {
+                const isDone = proj.status === "complete" || proj.status === "deliverable";
+                return (
+                  <motion.button
+                    key={proj.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.08, duration: 0.4 }}
+                    whileHover={{ y: -3, boxShadow: "0 12px 40px rgba(53,53,243,0.08)" }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => navigate(`/projects/${proj.id}/chat`)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "24px",
+                      borderRadius: "20px",
+                      background: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                      <div>
+                        <h3 style={{ margin: "0 0 4px", fontSize: "1.15rem", fontWeight: 700, color: "#0f172a" }}>
+                          {proj.customer_name || proj.name || "Untitled Project"}
+                        </h3>
+                        <p style={{ margin: 0, color: "#3535F3", fontSize: "0.9rem", fontWeight: 600 }}>
+                          {formatProduct(proj.product_interest) || "Energy Solutions"}
+                        </p>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{
+                          padding: "6px 12px",
+                          borderRadius: "999px",
+                          fontSize: "0.78rem",
+                          fontWeight: 600,
+                          background: isDone ? "rgba(34,197,94,0.1)" : "rgba(53,53,243,0.08)",
+                          color: isDone ? "#16a34a" : "#3535F3",
+                          border: `1px solid ${isDone ? "rgba(34,197,94,0.2)" : "rgba(53,53,243,0.15)"}`,
+                        }}>
+                          {isDone ? "Report Ready" : "In Progress"}
+                        </span>
+                        <ArrowRight size={16} style={{ color: "#94a3b8" }} />
+                      </div>
+                    </div>
+
+                    {/* Data grid — same as lead cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                      {[
+                        { icon: <MapPin size={14} />, label: "City", value: proj.city || "—" },
+                        { icon: <MapPin size={14} />, label: "Postal", value: proj.postal_code || "—" },
+                        { icon: <Users size={14} />, label: "Household", value: proj.household_size ? `${proj.household_size} people` : "—" },
+                        { icon: <Zap size={14} />, label: "Electricity", value: proj.electricity_kwh_year ? `${proj.electricity_kwh_year} kWh` : "—" },
+                        { icon: <Wallet size={14} />, label: "Budget", value: proj.financial_profile || "—" },
+                        { icon: <Home size={14} />, label: "House", value: proj.house_type || "—" },
+                        { icon: <Flame size={14} />, label: "Heating", value: proj.heating_type || "—" },
+                        { icon: <Calendar size={14} />, label: "Built", value: proj.build_year || "—" },
+                      ].map((item, j) => (
+                        <div key={j} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "10px 12px",
+                          borderRadius: "12px",
+                          background: "#f8f9fb",
+                          border: "1px solid #f1f5f9",
+                        }}>
+                          <span style={{ color: "#94a3b8", flexShrink: 0 }}>{item.icon}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.label}</div>
+                            <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.value}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Notes */}
+                    {proj.notes && (
+                      <div style={{
+                        marginTop: "12px",
+                        padding: "10px 14px",
+                        borderRadius: "12px",
+                        background: "#f8f9fb",
+                        border: "1px solid #f1f5f9",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}>
+                        <FileText size={14} style={{ color: "#94a3b8", flexShrink: 0 }} />
+                        <span style={{ fontSize: "0.85rem", color: "#475569" }}>{proj.notes}</span>
+                      </div>
+                    )}
+                  </motion.button>
+                );
+              })}
           </div>
         </motion.div>
       </div>
