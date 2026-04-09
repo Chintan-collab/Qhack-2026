@@ -63,7 +63,7 @@ export default function HomePage() {
           animate="visible"
         >
           <motion.div variants={itemVariants} className="login-brand">
-            Cloover AI
+            Cleo
           </motion.div>
 
           <motion.div variants={itemVariants}>
