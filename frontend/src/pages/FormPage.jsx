@@ -102,12 +102,15 @@ export default function FormPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
 
-  // Fetch projects created through chat (not from hardcoded leads)
+  const [allProjects, setAllProjects] = useState([]);
+
+  // Fetch all projects
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/projects/`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
+          setAllProjects(data);
           // Filter out projects that match hardcoded lead names
           const leadNames = leads.map((l) => l.name);
           const chatProjects = data.filter((p) => !leadNames.includes(p.name));
@@ -116,6 +119,12 @@ export default function FormPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Get project status for a hardcoded lead
+  const getLeadStatus = (lead) => {
+    const proj = allProjects.find((p) => p.customer_name === lead.name || p.name === lead.name);
+    return proj?.status || null;
+  };
 
   const formatProduct = (value) => {
     if (!value) return "—";
@@ -225,17 +234,23 @@ export default function FormPage() {
                     <p style={{ margin: 0, color: "#3535F3", fontSize: "0.9rem", fontWeight: 600 }}>{formatProduct(lead.product_interest)}</p>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{
-                      padding: "6px 12px",
-                      borderRadius: "999px",
-                      background: "rgba(53,53,243,0.08)",
-                      color: "#3535F3",
-                      fontSize: "0.78rem",
-                      fontWeight: 600,
-                      border: "1px solid rgba(53,53,243,0.15)",
-                    }}>
-                      Active Lead
-                    </span>
+                    {(() => {
+                      const st = getLeadStatus(lead);
+                      const isDone = st === "complete" || st === "deliverable";
+                      return (
+                        <span style={{
+                          padding: "6px 12px",
+                          borderRadius: "999px",
+                          fontSize: "0.78rem",
+                          fontWeight: 600,
+                          background: isDone ? "rgba(34,197,94,0.1)" : "rgba(53,53,243,0.08)",
+                          color: isDone ? "#16a34a" : "#3535F3",
+                          border: `1px solid ${isDone ? "rgba(34,197,94,0.2)" : "rgba(53,53,243,0.15)"}`,
+                        }}>
+                          {isDone ? "Report Ready" : st ? "In Progress" : "Active Lead"}
+                        </span>
+                      );
+                    })()}
                     <ArrowRight size={16} style={{ color: "#94a3b8" }} />
                   </div>
                 </div>

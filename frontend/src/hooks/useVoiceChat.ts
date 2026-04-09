@@ -379,20 +379,8 @@ export function useVoiceChat(projectId?: string) {
   /** Start the continuous voice conversation loop with a greeting */
   const startLoop = useCallback(async () => {
     loopActiveRef.current = true;
-    setState((s) => ({ ...s, isLoopActive: true, error: null, isSpeaking: true }));
-
-    // Cleo greets first
-    try {
-      await speak("Hey there! I'm Cleo, your AI sales coach. I've got the details on this lead. Go ahead — tell me what you need.", undefined);
-    } catch {
-      // TTS failed, continue anyway
-    }
-
-    setState((s) => ({ ...s, isSpeaking: false }));
-
-    if (loopActiveRef.current) {
-      startRecording();
-    }
+    setState((s) => ({ ...s, isLoopActive: true, error: null }));
+    startRecording();
   }, [startRecording]);
 
   /** Stop the entire loop */
