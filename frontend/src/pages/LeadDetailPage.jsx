@@ -120,7 +120,7 @@ export default function LeadPage() {
     if (projectId) return projectId;
     if (!lead) return null;
 
-    const res = await fetch("/api/v1/projects/", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/projects/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

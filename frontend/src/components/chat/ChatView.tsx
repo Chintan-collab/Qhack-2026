@@ -50,7 +50,7 @@ export default function ChatView() {
     if (!projectId) return;
     setIsGeneratingReport(true);
     try {
-      const res = await fetch(`/api/v1/report/generate/${projectId}`, { method: "POST" });
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/report/generate/${projectId}`, { method: "POST" });
       const data = await res.json();
       localStorage.setItem("reportData", JSON.stringify(data));
       navigate("/report");
