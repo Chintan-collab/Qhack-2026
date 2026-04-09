@@ -180,20 +180,48 @@ def _build_sales_data_from_project(project: Project) -> SalesData:
 
 
 def _compute_confidence(sd: SalesData) -> int:
-    """Confidence based on how many customer fields are filled."""
-    fields = [
+    """Dynamic confidence score based on data completeness and quality."""
+    score = 0
+
+    # Customer data (max 30 points)
+    customer_fields = [
         sd.customer_name, sd.postal_code, sd.city, sd.product_interest,
         sd.household_size, sd.house_type, sd.build_year, sd.roof_orientation,
         sd.electricity_kwh_year, sd.heating_type, sd.monthly_energy_bill_eur,
         sd.existing_assets, sd.financial_profile, sd.notes,
     ]
-    filled = sum(1 for f in fields if f is not None)
-    # Boost if research/strategy data exists
+    filled = sum(1 for f in customer_fields if f is not None)
+    score += int(filled / len(customer_fields) * 30)
+
+    # Research quality (max 25 points)
     if sd.regional_incentives:
-        filled += 2
+        score += min(len(sd.regional_incentives) * 4, 12)
+    if sd.energy_price_outlook:
+        score += 5
+    if sd.market_trends:
+        score += min(len(sd.market_trends) * 3, 8)
+
+    # Strategy quality (max 25 points)
     if sd.value_proposition:
-        filled += 2
-    return min(int(filled / 18 * 100), 95)
+        score += 8
+    if sd.key_messages:
+        score += min(len(sd.key_messages) * 2, 8)
+    if sd.savings_estimate:
+        score += 5
+    if sd.financing_options:
+        score += 4
+
+    # Extras (max 20 points)
+    if sd.competitors:
+        score += min(len(sd.competitors) * 3, 6)
+    if sd.objections:
+        score += min(len(sd.objections) * 2, 6)
+    if sd.payback_period:
+        score += 4
+    if sd.positioning:
+        score += 4
+
+    return min(score, 100)
 
 
 @router.post("/generate/{project_id}")
