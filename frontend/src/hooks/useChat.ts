@@ -9,6 +9,20 @@ export function useChat(projectId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const initializedRef = useRef(false);
 
+  // Welcome message for no-project chat
+  useEffect(() => {
+    if (projectId || initializedRef.current) return;
+    if (store.messages.length > 0) return;
+    initializedRef.current = true;
+    store.addMessage({
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "Hey there! I'm Cleo, your AI sales coach. Tell me about the customer you're preparing for — name, location, what product they're interested in — and I'll help you build a winning pitch.",
+      agentName: "data_gathering",
+      timestamp: new Date().toISOString(),
+    });
+  }, [projectId, store]);
+
   // On mount: if we have a projectId, load project phase + existing conversation
   useEffect(() => {
     if (!projectId || initializedRef.current) return;
