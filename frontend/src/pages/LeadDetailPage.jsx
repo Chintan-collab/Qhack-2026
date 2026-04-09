@@ -32,6 +32,7 @@ const leads = [
     existing_assets: "None",
     financial_profile: "Mid-income, open to financing",
     notes: "Concerned about rising gas prices",
+    date_of_birth: "1979-05-12",
   },
   {
     id: 2,
@@ -49,6 +50,7 @@ const leads = [
     existing_assets: "None",
     financial_profile: "High income, prefers cash",
     notes: "Interested in sustainability and reducing carbon footprint",
+    date_of_birth: "1987-09-03",
   },
   {
     id: 3,
@@ -66,6 +68,7 @@ const leads = [
     existing_assets: "None",
     financial_profile: "Limited upfront budget, needs financing",
     notes: "Large roof area, wants to replace oil heating before regulations hit",
+    date_of_birth: "1972-02-14",
   },
   {
     id: 4,
@@ -83,6 +86,7 @@ const leads = [
     existing_assets: "None",
     financial_profile: "High income, prefers full package",
     notes: "Just bought an EV, wants full energy independence",
+    date_of_birth: "1990-07-08",
   },
   {
     id: 5,
@@ -100,6 +104,7 @@ const leads = [
     existing_assets: "Solar 5 kWp",
     financial_profile: "Financing required",
     notes: "Already has solar, concerned about oil price volatility and GEG deadline",
+    date_of_birth: "1950-11-02",
   },
 ];
 
@@ -126,6 +131,7 @@ export default function LeadPage() {
       body: JSON.stringify({
         name: lead.name,
         customer_name: lead.name,
+        date_of_birth: lead.date_of_birth || null,
         postal_code: lead.postal_code || lead.postcode,
         city: lead.city || lead.area,
         product_interest: lead.product_interest?.replace(/_/g, " + "),
@@ -169,6 +175,17 @@ export default function LeadPage() {
   const getLeadBudget = (lead) =>
     lead.financial_profile || lead.budget_band || "—";
   const getLeadGoal = (lead) => lead.notes || lead.customer_goal || "—";
+
+  const formatDob = (dob) => {
+    if (!dob) return "—";
+    const d = new Date(dob);
+    if (Number.isNaN(d.getTime())) return dob;
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age -= 1;
+    return `${d.toLocaleDateString("en-GB")} (age ${age})`;
+  };
 
   if (!lead) {
     return (
@@ -276,6 +293,11 @@ export default function LeadPage() {
                 <div className="lead-info-item">
                   <span><Calendar size={16} /> Build Year</span>
                   <p>{lead.build_year || "—"}</p>
+                </div>
+
+                <div className="lead-info-item">
+                  <span><Calendar size={16} /> Date of Birth</span>
+                  <p>{formatDob(lead.date_of_birth)}</p>
                 </div>
 
                 <div className="lead-info-item">

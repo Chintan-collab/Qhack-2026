@@ -15,6 +15,7 @@ class Project(Base):
 
     # Customer & property
     customer_name = Column(String(255), nullable=True)
+    date_of_birth = Column(String(10), nullable=True)  # ISO YYYY-MM-DD
     postal_code = Column(String(10), nullable=True)
     city = Column(String(255), nullable=True)
     product_interest = Column(String(255), nullable=True)

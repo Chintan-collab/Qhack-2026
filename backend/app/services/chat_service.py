@@ -117,6 +117,7 @@ class ChatService:
 
         sales_data = SalesData(
             customer_name=project.customer_name,
+            date_of_birth=project.date_of_birth,
             postal_code=project.postal_code,
             city=project.city,
             product_interest=project.product_interest,

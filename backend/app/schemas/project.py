@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class ProjectCreate(BaseModel):
     name: str
     customer_name: str | None = None
+    date_of_birth: str | None = None  # ISO YYYY-MM-DD
     postal_code: str | None = None
     city: str | None = None
     product_interest: str | None = None
@@ -24,6 +25,7 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     name: str | None = None
     customer_name: str | None = None
+    date_of_birth: str | None = None  # ISO YYYY-MM-DD
     postal_code: str | None = None
     city: str | None = None
     product_interest: str | None = None
@@ -44,6 +46,7 @@ class ProjectResponse(BaseModel):
     id: str
     name: str
     customer_name: str | None = None
+    date_of_birth: str | None = None  # ISO YYYY-MM-DD
     postal_code: str | None = None
     city: str | None = None
     product_interest: str | None = None

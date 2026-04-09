@@ -30,6 +30,7 @@ const leads = [
     monthly_energy_bill_eur: 180,
     financial_profile: "Mid-income, open to financing",
     notes: "Concerned about rising gas prices",
+    date_of_birth: "1979-05-12",
   },
   {
     id: 2,
@@ -45,6 +46,7 @@ const leads = [
     monthly_energy_bill_eur: 120,
     financial_profile: "High income, prefers cash",
     notes: "Interested in sustainability",
+    date_of_birth: "1987-09-03",
   },
   {
     id: 3,
@@ -60,6 +62,7 @@ const leads = [
     monthly_energy_bill_eur: 260,
     financial_profile: "Needs financing",
     notes: "Wants to replace oil heating",
+    date_of_birth: "1972-02-14",
   },
   {
     id: 4,
@@ -75,6 +78,7 @@ const leads = [
     monthly_energy_bill_eur: 140,
     financial_profile: "High income",
     notes: "Just bought an EV",
+    date_of_birth: "1990-07-08",
   },
   {
     id: 5,
@@ -90,6 +94,7 @@ const leads = [
     monthly_energy_bill_eur: 250,
     financial_profile: "Financing required",
     notes: "Has solar, worried about oil prices",
+    date_of_birth: "1950-11-02",
   },
 ];
 
@@ -118,6 +123,17 @@ export default function FormPage() {
     lead.financial_profile || lead.budget_band || "—";
 
   const getLeadNote = (lead) => lead.notes || lead.customer_goal || "—";
+
+  const formatDob = (dob) => {
+    if (!dob) return "—";
+    const d = new Date(dob);
+    if (Number.isNaN(d.getTime())) return dob;
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age -= 1;
+    return `${d.toLocaleDateString("en-GB")} (age ${age})`;
+  };
 
   const handleLeadOpen = (leadId) => {
     setLeadDialogOpen(false);
@@ -230,6 +246,13 @@ export default function FormPage() {
                         <Calendar size={15} /> Build Year
                       </span>
                       <strong>{lead.build_year || "—"}</strong>
+                    </div>
+
+                    <div className="lead-card-row">
+                      <span>
+                        <Calendar size={15} /> Date of Birth
+                      </span>
+                      <strong>{formatDob(lead.date_of_birth)}</strong>
                     </div>
 
                     <div className="lead-card-row">
