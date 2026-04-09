@@ -186,12 +186,27 @@ class ResearchAgent(BaseAgent):
                 search_results.append({"query": q, "results": "Search failed"})
 
         # Step 2: Synthesize with LLM
+        # Include uploaded documents if available
+        doc_context = ""
+        uploaded_docs = context.shared_state.get("uploaded_docs", [])
+        if uploaded_docs:
+            doc_texts = []
+            for doc in uploaded_docs:
+                doc_texts.append(f"--- {doc['filename']} ---\n{doc['text'][:3000]}")
+            doc_context = (
+                f"\n\nUploaded documents provided by the installer:\n"
+                + "\n\n".join(doc_texts)
+                + "\n\nUse these documents as additional context for your research. "
+                "Reference specific data from them when relevant.\n"
+            )
+
         synthesis_prompt = (
             f"You are the Cleo, Cloover's AI Sales Coach researching for an installer.\n\n"
             f"Customer data:\n{json.dumps(known, indent=2)}\n\n"
-            f"Web search results:\n{json.dumps(search_results, indent=2)}\n\n"
-            f"Based on these search results, provide a clear research briefing "
-            f"for the installer. Structure your response as:\n\n"
+            f"Web search results:\n{json.dumps(search_results, indent=2)}\n"
+            f"{doc_context}\n"
+            f"Based on these search results{' and the uploaded documents' if uploaded_docs else ''}, "
+            f"provide a clear research briefing for the installer. Structure your response as:\n\n"
             f"**Regional Incentives & Subsidies**\n"
             f"- List specific programs (KfW, BAFA, local) with amounts\n\n"
             f"**Energy Price Context**\n"

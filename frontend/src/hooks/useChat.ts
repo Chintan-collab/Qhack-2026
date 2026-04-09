@@ -39,14 +39,47 @@ export function useChat(projectId?: string) {
             agentName: m.agent_name,
             timestamp: m.created_at || new Date().toISOString(),
           })) || [];
-          for (const msg of messages) {
-            store.addMessage(msg);
+          if (messages.length > 0) {
+            for (const msg of messages) {
+              store.addMessage(msg);
+            }
+          } else {
+            // Existing conversation but no messages — add welcome
+            addWelcome();
           }
         } catch {
-          // No messages yet — fresh conversation
+          addWelcome();
         }
+      } else {
+        // No conversation yet — add welcome message
+        addWelcome();
       }
     });
+
+    function addWelcome() {
+      api.projects.get(projectId!).then((project) => {
+        const hasData = (project.status as string) !== "data_gathering" && project.status !== "gathering";
+        const name = (project as any).customer_name;
+        const msg = hasData
+          ? `Hey there! I'm Cleo, your AI sales coach. I've already got the details on ${name || "this lead"} — just say the word and I'll research the market, build your strategy, and prep your pitch. What would you like to start with?`
+          : "Hey there! I'm Cleo, your AI sales coach. Let's get started — tell me about the customer you're visiting. What's their name and where are they located?";
+        store.addMessage({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: msg,
+          agentName: hasData ? "research" : "data_gathering",
+          timestamp: new Date().toISOString(),
+        });
+      }).catch(() => {
+        store.addMessage({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "Hey there! I'm Cleo, your AI sales coach. Tell me about the customer you're preparing for — name, location, what product they're interested in.",
+          agentName: "data_gathering",
+          timestamp: new Date().toISOString(),
+        });
+      });
+    }
   }, [projectId, store]);
 
   const sendMessage = useCallback(

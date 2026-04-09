@@ -36,6 +36,9 @@ class Project(Base):
     research_data = Column(JSON, default=dict)
     strategy_notes = Column(JSON, default=dict)
 
+    # Uploaded documents — list of {filename, text, uploaded_at}
+    documents = Column(JSON, default=list)
+
     status = Column(String(50), default="data_gathering")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

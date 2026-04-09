@@ -262,7 +262,7 @@ async def generate_report(
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
     config = genai_types.GenerateContentConfig(
         system_instruction=REPORT_SYSTEM_PROMPT,
-        max_output_tokens=8192,
+        max_output_tokens=16384,
         response_mime_type="application/json",
     )
 
