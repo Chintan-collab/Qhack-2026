@@ -15,7 +15,7 @@ PHASE_AGENT_MAP: dict[SalesPhase, str] = {
     SalesPhase.FINANCIAL: "financial",
     SalesPhase.STRATEGY: "strategy",
     SalesPhase.DELIVERABLE: "pitch_deck",
-    SalesPhase.COMPLETE: "pitch_deck",
+    SalesPhase.COMPLETE: "strategy",  # Q&A after pipeline is done
 }
 
 # Handoff prompts — only used for automatic silent transitions.
@@ -46,12 +46,6 @@ HANDOFF_PROMPTS: dict[SalesPhase, str] = {
         "subsidies per component, build cash / subsidy+cash / "
         "subsidy+financing scenarios for each tier, and flag age-based "
         "suitability alerts."
-    ),
-    SalesPhase.STRATEGY: (
-        "Research and analysis are complete. Now build the full sales "
-        "strategy — present the value proposition, savings estimate, "
-        "key talking points, financing recommendation, and objection "
-        "handling in one comprehensive briefing."
     ),
     SalesPhase.DELIVERABLE: (
         "The sales strategy has been finalized. "
@@ -111,29 +105,8 @@ class SalesSupervisor(AgentOrchestrator):
         self, context: AgentContext, message: AgentMessage
     ) -> BaseAgent:
         sales_data = _get_sales_data(context)
-
-        # Auto-advance if current phase is already complete
-        original_phase = sales_data.phase
-        advanced = True
-        while advanced:
-            advanced = False
-            if sales_data.phase == SalesPhase.RESEARCH and sales_data.is_research_complete():
-                sales_data.phase = SalesPhase.ANALYSIS
-                advanced = True
-            elif sales_data.phase == SalesPhase.ANALYSIS and sales_data.is_analysis_complete():
-                sales_data.phase = SalesPhase.FINANCIAL
-                advanced = True
-            elif sales_data.phase == SalesPhase.FINANCIAL and sales_data.is_financial_complete():
-                sales_data.phase = SalesPhase.STRATEGY
-                advanced = True
-            elif sales_data.phase == SalesPhase.STRATEGY and sales_data.is_strategy_complete():
-                sales_data.phase = SalesPhase.DELIVERABLE
-                advanced = True
-        if sales_data.phase != original_phase:
-            logger.info(f"Route auto-advanced: {original_phase.value} -> {sales_data.phase.value}")
-            _save_sales_data(context, sales_data)
-
         phase = sales_data.phase
+
         agent_name = PHASE_AGENT_MAP.get(phase)
         if agent_name:
             agent = registry.get(agent_name)
@@ -268,6 +241,20 @@ class SalesSupervisor(AgentOrchestrator):
     async def execute(
         self, context: AgentContext, message: AgentMessage
     ) -> AgentMessage:
+        # If pipeline is done, respond without running any agent
+        sd = _get_sales_data(context)
+        if sd.phase == SalesPhase.COMPLETE:
+            return AgentMessage(
+                role=MessageRole.ASSISTANT,
+                content=(
+                    "Your sales briefing is ready! Click **Generate Report** "
+                    "to download the full pitch deck with packages, "
+                    "financing options, and pitch guidance."
+                ),
+                agent_name="strategy",
+                metadata={"phase": "complete"},
+            )
+
         # Fast-forward on first message if data is complete
         fast_forwarded = self._maybe_fast_forward(context)
 
