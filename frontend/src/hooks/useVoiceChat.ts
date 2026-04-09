@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useChatStore } from "../store/chatStore";
 import type { Message } from "../types/chat";
 
-const VOICE_CHAT_URL = "/api/v1/voice/chat";
+const VOICE_CHAT_URL = (import.meta.env.VITE_API_URL || "") + "/api/v1/voice/chat";
 
 // Silence detection config
 const SILENCE_THRESHOLD = 0.015; // RMS level below which we consider "silence"
