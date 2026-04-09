@@ -1,18 +1,17 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   MapPin,
   Users,
   Zap,
   Wallet,
-  ArrowRight,
-  X,
   Home,
   Calendar,
   Flame,
   FileText,
+  MessageCircle,
 } from "lucide-react";
 
 const leads = [
@@ -100,44 +99,14 @@ const leads = [
 
 export default function FormPage() {
   const navigate = useNavigate();
-  const [leadDialogOpen, setLeadDialogOpen] = useState(false);
 
   const formatProduct = (value) => {
     if (!value) return "—";
-
     return value
       .replace(/_/g, " ")
       .split(" ")
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
-  };
-
-  const getLeadLocation = (lead) => lead.city || lead.area || "—";
-
-  const getLeadPostalCode = (lead) => lead.postal_code || lead.postcode || "—";
-
-  const getLeadUsage = (lead) =>
-    lead.electricity_kwh_year || lead.annual_consumption_kwh || "—";
-
-  const getLeadBudget = (lead) =>
-    lead.financial_profile || lead.budget_band || "—";
-
-  const getLeadNote = (lead) => lead.notes || lead.customer_goal || "—";
-
-  const formatDob = (dob) => {
-    if (!dob) return "—";
-    const d = new Date(dob);
-    if (Number.isNaN(d.getTime())) return dob;
-    const today = new Date();
-    let age = today.getFullYear() - d.getFullYear();
-    const m = today.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age -= 1;
-    return `${d.toLocaleDateString("en-GB")} (age ${age})`;
-  };
-
-  const handleLeadOpen = (leadId) => {
-    setLeadDialogOpen(false);
-    navigate(`/lead/${leadId}`);
   };
 
   return (
@@ -147,6 +116,7 @@ export default function FormPage() {
       <div className="dashboard-grid-overlay"></div>
 
       <div className="dashboard-container">
+        {/* Header */}
         <motion.div
           className="dashboard-header"
           initial={{ opacity: 0, y: -18 }}
@@ -154,247 +124,182 @@ export default function FormPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="dashboard-header-left">
-            <button className="back-link-btn" onClick={() => navigate("/")}>
-              <ArrowLeft size={18} />
+            <motion.button
+              onClick={() => navigate("/")}
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.95 }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                background: "transparent",
+                border: "none",
+                color: "#64748b",
+                fontWeight: 500,
+                fontSize: "0.85rem",
+                cursor: "pointer",
+                marginBottom: "16px",
+              }}
+            >
+              <ArrowLeft size={15} />
               Back
-            </button>
+            </motion.button>
 
             <div>
-              <p className="dashboard-kicker">Lead Qualification Workspace</p>
-              <h1>Sales Dashboard</h1>
-              <p className="dashboard-subtitle">
-                Select a lead card to open the customer details page.
+              <p className="dashboard-kicker" style={{ marginBottom: "4px" }}>Lead Qualification Workspace</p>
+              <h1 style={{ margin: "0 0 6px", fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", textAlign: "left" }}>Sales Dashboard</h1>
+              <p className="dashboard-subtitle" style={{ textAlign: "left", margin: 0 }}>
+                Select a lead to review their profile and start a coaching session with Cleo.
               </p>
             </div>
           </div>
+
+          <motion.button
+            className="primary-btn"
+            onClick={() => navigate("/chat")}
+            whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(53,53,243,0.3)" }}
+            whileTap={{ scale: 0.97 }}
+            style={{ display: "flex", alignItems: "center", gap: "8px", minHeight: "46px", padding: "0 20px" }}
+          >
+            <MessageCircle size={18} />
+            Talk to Cleo
+          </motion.button>
         </motion.div>
 
+        {/* Lead Cards */}
         <motion.div
-          className="dashboard-main-layout single-column-layout"
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.08 }}
         >
-          <div className="dashboard-left full-width-section">
-            <div className="dashboard-section-header">
-              <h2>Available Leads</h2>
-              <span>{leads.length} profiles</span>
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <h2 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>Available Leads</h2>
+            <span style={{ color: "#64748b", fontSize: "0.9rem" }}>{leads.length} profiles</span>
+          </div>
 
-            <div className="dashboard-cards-grid horizontal-cards-grid">
-              {leads.map((lead) => (
-                <motion.button
-                  key={lead.id}
-                  className="lead-dashboard-card lead-dashboard-card-horizontal"
-                  whileHover={{ y: -4 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate(`/lead/${lead.id}`)}
-                >
-                  <div className="lead-card-top">
-                    <div>
-                      <h3>{lead.name}</h3>
-                      <p>{formatProduct(lead.product_interest)}</p>
-                    </div>
-                    <span className="lead-status-badge">Active Lead</span>
-                  </div>
-
-                  <div className="lead-card-body horizontal-card-body">
-                    <div className="lead-card-row">
-                      <span>
-                        <MapPin size={15} /> City
-                      </span>
-                      <strong>{getLeadLocation(lead)}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <MapPin size={15} /> Postal Code
-                      </span>
-                      <strong>{getLeadPostalCode(lead)}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Users size={15} /> Household
-                      </span>
-                      <strong>{lead.household_size || "—"} people</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Zap size={15} /> Electricity
-                      </span>
-                      <strong>{getLeadUsage(lead)} kWh</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Wallet size={15} /> Budget
-                      </span>
-                      <strong>{getLeadBudget(lead)}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Home size={15} /> House Type
-                      </span>
-                      <strong>{lead.house_type || "—"}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Calendar size={15} /> Build Year
-                      </span>
-                      <strong>{lead.build_year || "—"}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Calendar size={15} /> Date of Birth
-                      </span>
-                      <strong>{formatDob(lead.date_of_birth)}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <MapPin size={15} /> Roof Orientation
-                      </span>
-                      <strong>{lead.roof_orientation || "—"}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Flame size={15} /> Heating Type
-                      </span>
-                      <strong>{lead.heating_type || "—"}</strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <Wallet size={15} /> Monthly Bill
-                      </span>
-                      <strong>
-                        {lead.monthly_energy_bill_eur
-                          ? `€${lead.monthly_energy_bill_eur}`
-                          : "—"}
-                      </strong>
-                    </div>
-
-                    <div className="lead-card-row">
-                      <span>
-                        <FileText size={15} /> Existing Assets
-                      </span>
-                      <strong>{lead.existing_assets || "—"}</strong>
-                    </div>
-
-                    <div className="lead-card-row lead-card-row-full">
-                      <span>
-                        <FileText size={15} /> Notes
-                      </span>
-                      <strong>{getLeadNote(lead)}</strong>
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-
-            <div className="dashboard-bottom-action">
-              <button
-                className="primary-btn"
-                onClick={() => navigate("/chat")}
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {leads.map((lead, i) => (
+              <motion.button
+                key={lead.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
+                whileHover={{ y: -3, boxShadow: "0 12px 40px rgba(53,53,243,0.08)" }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => navigate(`/lead/${lead.id}`)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "24px",
+                  borderRadius: "20px",
+                  background: "#ffffff",
+                  border: "1px solid #e5e7eb",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+                  cursor: "pointer",
+                  transition: "border-color 0.2s",
+                }}
               >
-                Open Lead Selector
-                <ArrowRight size={18} />
-              </button>
-            </div>
+                {/* Card Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                  <div>
+                    <h3 style={{ margin: "0 0 4px", fontSize: "1.15rem", fontWeight: 700, color: "#0f172a" }}>{lead.name}</h3>
+                    <p style={{ margin: 0, color: "#3535F3", fontSize: "0.9rem", fontWeight: 600 }}>{formatProduct(lead.product_interest)}</p>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{
+                      padding: "6px 12px",
+                      borderRadius: "999px",
+                      background: "rgba(53,53,243,0.08)",
+                      color: "#3535F3",
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                      border: "1px solid rgba(53,53,243,0.15)",
+                    }}>
+                      Active Lead
+                    </span>
+                    <ArrowRight size={16} style={{ color: "#94a3b8" }} />
+                  </div>
+                </div>
+
+                {/* Card Grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                  {[
+                    { icon: <MapPin size={14} />, label: "City", value: lead.city },
+                    { icon: <MapPin size={14} />, label: "Postal", value: lead.postal_code },
+                    { icon: <Users size={14} />, label: "Household", value: `${lead.household_size} people` },
+                    { icon: <Zap size={14} />, label: "Electricity", value: `${lead.electricity_kwh_year} kWh` },
+                    { icon: <Wallet size={14} />, label: "Budget", value: lead.financial_profile },
+                    { icon: <Home size={14} />, label: "House", value: lead.house_type || "—" },
+                    { icon: <Flame size={14} />, label: "Heating", value: lead.heating_type },
+                    { icon: <Calendar size={14} />, label: "Built", value: lead.build_year || "—" },
+                  ].map((item, j) => (
+                    <div key={j} style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "10px 12px",
+                      borderRadius: "12px",
+                      background: "#f8f9fb",
+                      border: "1px solid #f1f5f9",
+                    }}>
+                      <span style={{ color: "#94a3b8", flexShrink: 0 }}>{item.icon}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.label}</div>
+                        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.value}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Notes row */}
+                {lead.notes && (
+                  <div style={{
+                    marginTop: "12px",
+                    padding: "10px 14px",
+                    borderRadius: "12px",
+                    background: "#f8f9fb",
+                    border: "1px solid #f1f5f9",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}>
+                    <FileText size={14} style={{ color: "#94a3b8", flexShrink: 0 }} />
+                    <span style={{ fontSize: "0.85rem", color: "#475569" }}>{lead.notes}</span>
+                  </div>
+                )}
+              </motion.button>
+            ))}
           </div>
         </motion.div>
       </div>
 
-      <AnimatePresence>
-        {leadDialogOpen && (
-          <motion.div
-            className="lead-dialog-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setLeadDialogOpen(false)}
-          >
-            <motion.div
-              className="lead-dialog-box"
-              initial={{ opacity: 0, y: 20, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 14, scale: 0.96 }}
-              transition={{ duration: 0.25 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="lead-dialog-header">
-                <div>
-                  <p className="dashboard-kicker">Choose Lead</p>
-                  <h3>Select a customer profile</h3>
-                </div>
-
-                <button
-                  className="lead-dialog-close-btn"
-                  onClick={() => setLeadDialogOpen(false)}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="lead-dialog-list">
-                {leads.map((lead) => (
-                  <motion.button
-                    key={lead.id}
-                    className="lead-dialog-card"
-                    whileHover={{ y: -3 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleLeadOpen(lead.id)}
-                  >
-                    <div className="lead-dialog-card-top">
-                      <div>
-                        <h4>{lead.name}</h4>
-                        <p>{formatProduct(lead.product_interest)}</p>
-                      </div>
-                      <ArrowRight size={18} />
-                    </div>
-
-                    <div className="lead-dialog-card-body">
-                      <div className="lead-card-row">
-                        <span>
-                          <MapPin size={15} /> City
-                        </span>
-                        <strong>{getLeadLocation(lead)}</strong>
-                      </div>
-
-                      <div className="lead-card-row">
-                        <span>
-                          <Users size={15} /> Household
-                        </span>
-                        <strong>{lead.household_size || "—"} people</strong>
-                      </div>
-
-                      <div className="lead-card-row">
-                        <span>
-                          <Zap size={15} /> Usage
-                        </span>
-                        <strong>{getLeadUsage(lead)} kWh</strong>
-                      </div>
-
-                      <div className="lead-card-row">
-                        <span>
-                          <Wallet size={15} /> Budget
-                        </span>
-                        <strong>{getLeadBudget(lead)}</strong>
-                      </div>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Floating Chat Button */}
+      <motion.button
+        onClick={() => navigate("/chat")}
+        style={{
+          position: "fixed",
+          bottom: "28px",
+          right: "28px",
+          width: "56px",
+          height: "56px",
+          borderRadius: "50%",
+          background: "linear-gradient(135deg, #3535F3, #4747F5)",
+          color: "white",
+          border: "none",
+          boxShadow: "0 8px 30px rgba(53,53,243,0.35)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 50,
+        }}
+        whileHover={{ scale: 1.1, boxShadow: "0 12px 40px rgba(53,53,243,0.45)" }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <MessageCircle size={24} />
+      </motion.button>
     </div>
   );
 }

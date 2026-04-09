@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MessageSquare, Mic, FileText, Loader2, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import { useChat } from "../../hooks/useChat";
 import MessageList from "./MessageList";
@@ -16,15 +17,33 @@ export default function ChatView() {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [phaseFlash, setPhaseFlash] = useState(false);
+  const [phaseToast, setPhaseToast] = useState<string | null>(null);
   const prevPhaseRef = useRef(currentPhase);
 
-  // Flash animation when phase changes
+  const phaseLabels: Record<string, string> = {
+    data_gathering: "Data Gathering",
+    research: "Research",
+    analysis: "Analysis",
+    financial: "Financing",
+    strategy: "Strategy",
+    deliverable: "Report",
+    complete: "Complete",
+  };
+
+  // Flash + toast animation when phase changes
   useEffect(() => {
     if (currentPhase && currentPhase !== prevPhaseRef.current) {
+      const prev = prevPhaseRef.current;
       prevPhaseRef.current = currentPhase;
       setPhaseFlash(true);
-      const t = setTimeout(() => setPhaseFlash(false), 1200);
-      return () => clearTimeout(t);
+      const t1 = setTimeout(() => setPhaseFlash(false), 1200);
+
+      if (prev) {
+        setPhaseToast(`${phaseLabels[prev] || prev} complete — moving to ${phaseLabels[currentPhase] || currentPhase}`);
+        const t2 = setTimeout(() => setPhaseToast(null), 3000);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+      }
+      return () => clearTimeout(t1);
     }
   }, [currentPhase]);
 
@@ -62,15 +81,21 @@ export default function ChatView() {
   }, [projectId, navigate]);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 relative" style={{ background: "radial-gradient(circle at top left, rgba(53,53,243,0.08), transparent 40%), radial-gradient(circle at bottom right, rgba(71,71,245,0.06), transparent 40%), linear-gradient(135deg, #07111f 0%, #0b1728 45%, #111827 100%)" }}>
+    <div className="flex flex-col flex-1 min-h-0 relative" style={{ background: "#f9fafb" }}>
+      {/* Grid overlay like other pages */}
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        backgroundImage: "linear-gradient(rgba(15,23,42,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.03) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+        maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.75), transparent 95%)",
+      }} />
+
       {/* Header — fixed at top */}
-      <header className="sticky top-0 z-10 shrink-0 border-b border-gray-800/60 bg-gray-900/95 backdrop-blur-md px-6 py-3">
+      <header className="sticky top-0 z-10 shrink-0 px-6 py-3" style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e5e7eb" }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-4 h-4 text-[#6565FF]" />
-            <span className="text-sm font-medium text-gray-300">
-              {projectId ? "Cleo — Sales Coach" : "Cleo"}
-            </span>
+            <Sparkles className="w-4 h-4 text-[#3535F3]" />
+            <span className="text-sm font-bold text-gray-800">Cleo</span>
             {activeAgent && <AgentBadge agentName={activeAgent} />}
           </div>
 
@@ -91,14 +116,14 @@ export default function ChatView() {
             )}
 
             {/* Voice / Text mode toggle */}
-            <div className="flex items-center bg-gray-800/80 rounded-xl p-0.5 border border-gray-700/50">
+            <div className="flex items-center bg-gray-100 rounded-xl p-0.5 border border-gray-200">
               <button
                 onClick={() => setIsVoiceMode(false)}
                 className={clsx(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                   !isVoiceMode
-                    ? "bg-gray-700 text-white shadow-sm"
-                    : "text-gray-400 hover:text-white",
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700",
                 )}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -109,8 +134,8 @@ export default function ChatView() {
                 className={clsx(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                   isVoiceMode
-                    ? "bg-gray-700 text-white shadow-sm"
-                    : "text-gray-400 hover:text-white",
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700",
                 )}
               >
                 <Mic className="w-3.5 h-3.5" />
@@ -123,7 +148,7 @@ export default function ChatView() {
         {/* Phase indicator with flash animation */}
         <div
           className={clsx(
-            "mt-4 mb-1 transition-all duration-500",
+            "mt-4 mb-1 transition-all duration-500 max-w-3xl mx-auto px-6 w-full",
             phaseFlash && "scale-[1.02] brightness-125",
           )}
         >
@@ -131,13 +156,29 @@ export default function ChatView() {
         </div>
       </header>
 
+      {/* Phase transition toast */}
+      <AnimatePresence>
+        {phaseToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="mx-6 mt-2 px-4 py-2.5 rounded-xl bg-[#3535F3]/8 border border-[#3535F3]/15 text-[#3535F3] text-xs font-medium text-center"
+          >
+            <Sparkles className="w-3 h-3 inline mr-1.5" />
+            {phaseToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Content */}
       {isVoiceMode ? (
         <VoiceMode projectId={projectId} />
       ) : (
         <>
           <MessageList messages={messages} isStreaming={isStreaming} />
-          <ChatInput onSend={sendMessage} disabled={isStreaming} />
+          <ChatInput onSend={sendMessage} disabled={isStreaming} projectId={projectId} />
         </>
       )}
     </div>

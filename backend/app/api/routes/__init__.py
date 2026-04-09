@@ -8,6 +8,7 @@ from app.api.routes.projects import router as projects_router
 from app.api.routes.leads import router as leads_router
 from app.api.routes.voice import router as voice_router
 from app.api.routes.report import router as report_router
+from app.api.routes.documents import router as documents_router
 
 router = APIRouter()
 router.include_router(chat_router, prefix="/chat", tags=["chat"])
@@ -33,4 +34,7 @@ router.include_router(
 )
 router.include_router(
     report_router, prefix="/report", tags=["report"]
+)
+router.include_router(
+    documents_router, prefix="/documents", tags=["documents"]
 )

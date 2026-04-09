@@ -185,6 +185,10 @@ class ChatService:
         )
         context.shared_state["project_id"] = project_id
 
+        # Load uploaded documents for RAG
+        if project.documents:
+            context.shared_state["uploaded_docs"] = project.documents
+
     async def _auto_create_project(
         self, context: AgentContext
     ) -> str | None:

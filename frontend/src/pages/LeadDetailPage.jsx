@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -13,6 +13,10 @@ import {
   Calendar,
   Flame,
   FileText,
+  Paperclip,
+  Upload,
+  Loader2,
+  File,
 } from "lucide-react";
 
 const leads = [
@@ -107,6 +111,113 @@ const leads = [
     date_of_birth: "1950-11-02",
   },
 ];
+
+function DocumentsCard({ projectId, ensureProject }) {
+  const [docs, setDocs] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  // Load existing docs when projectId is available
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/documents/${projectId}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setDocs(data); })
+      .catch(() => {});
+  }, [projectId]);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const pid = await ensureProject();
+      if (!pid) {
+        alert("Could not create project for upload");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL || ""}/api/v1/documents/upload/${pid}`,
+        { method: "POST", body: formData },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setDocs((prev) => [...prev, { filename: data.filename, chars: data.chars, uploaded_at: new Date().toISOString() }]);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || "Upload failed");
+      }
+    } catch (ex) {
+      alert("Upload failed: " + (ex instanceof Error ? ex.message : "Unknown error"));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <div style={{
+      padding: "28px", borderRadius: "20px", background: "#ffffff",
+      border: "1px solid #e5e7eb", boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div>
+          <p style={{ margin: "0 0 4px", fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#3535F3", fontWeight: 700 }}>
+            Documents
+          </p>
+          <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#0f172a" }}>
+            Uploaded Files
+          </h3>
+        </div>
+        <input ref={fileRef} type="file" accept=".pdf" onChange={handleUpload} style={{ display: "none" }} />
+        <motion.button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.95 }}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            padding: "8px 14px", borderRadius: "10px",
+            background: "#f8f9fb", border: "1px solid #e5e7eb",
+            color: "#3535F3", fontSize: "0.82rem", fontWeight: 600,
+            cursor: uploading ? "not-allowed" : "pointer",
+          }}
+        >
+          {uploading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Upload size={14} />}
+          {uploading ? "Uploading..." : "Upload PDF"}
+        </motion.button>
+      </div>
+
+      {docs.length === 0 ? (
+        <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.88rem" }}>
+          No documents uploaded yet. Upload product brochures, price lists, or spec sheets — Cleo will use them during research.
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {docs.map((doc, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: "10px",
+              padding: "10px 14px", borderRadius: "12px",
+              background: "#f8f9fb", border: "1px solid #f1f5f9",
+            }}>
+              <File size={16} style={{ color: "#3535F3", flexShrink: 0 }} />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {doc.filename}
+                </p>
+                <p style={{ margin: 0, fontSize: "0.72rem", color: "#94a3b8" }}>
+                  {Math.round((doc.chars || 0) / 100) / 10}k chars extracted
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LeadPage() {
   const navigate = useNavigate();
@@ -205,156 +316,171 @@ export default function LeadPage() {
     );
   }
 
-  return (
-    <div className="lead-page">
-      <div className="dashboard-bg-glow dashboard-glow-1"></div>
-      <div className="dashboard-bg-glow dashboard-glow-2"></div>
-      <div className="dashboard-grid-overlay"></div>
+  const dataItems = [
+    { icon: <MapPin size={14} />, label: "City", value: getLeadLocation(lead) },
+    { icon: <MapPin size={14} />, label: "Postal Code", value: getLeadPostalCode(lead) },
+    { icon: <Users size={14} />, label: "Household", value: `${lead.household_size || "—"} people` },
+    { icon: <Zap size={14} />, label: "Electricity", value: `${getLeadUsage(lead)} kWh` },
+    { icon: <Wallet size={14} />, label: "Budget / Profile", value: getLeadBudget(lead) },
+    { icon: <Target size={14} />, label: "Product Interest", value: formatProduct(lead.product_interest) },
+    { icon: <Home size={14} />, label: "House Type", value: lead.house_type || "—" },
+    { icon: <Calendar size={14} />, label: "Build Year", value: lead.build_year || "—" },
+    { icon: <Calendar size={14} />, label: "Date of Birth", value: formatDob(lead.date_of_birth) },
+    { icon: <MapPin size={14} />, label: "Roof", value: lead.roof_orientation || "—" },
+    { icon: <Flame size={14} />, label: "Heating", value: lead.heating_type || "—" },
+    { icon: <Wallet size={14} />, label: "Monthly Bill", value: lead.monthly_energy_bill_eur ? `€${lead.monthly_energy_bill_eur}` : "—" },
+    { icon: <FileText size={14} />, label: "Existing Assets", value: lead.existing_assets || "—" },
+  ];
 
-      <div className="lead-page-container">
+  return (
+    <div style={{ background: "#f9fafb", minHeight: "100vh", position: "relative" }}>
+      {/* Grid overlay */}
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        backgroundImage: "linear-gradient(rgba(15,23,42,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.03) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+        maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.75), transparent 95%)",
+      }} />
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: "1100px", margin: "0 auto", padding: "40px 24px 60px" }}>
+        {/* Back button */}
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <motion.button
+            onClick={() => navigate("/form")}
+            whileHover={{ x: -2 }}
+            whileTap={{ scale: 0.95 }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "5px",
+              padding: "6px 12px", borderRadius: "8px", background: "transparent",
+              border: "none", color: "#64748b", fontWeight: 500, fontSize: "0.85rem",
+              cursor: "pointer", marginBottom: "24px",
+            }}
+          >
+            <ArrowLeft size={15} />
+            Back
+          </motion.button>
+        </motion.div>
+
+        {/* Header */}
         <motion.div
-          className="lead-page-header"
-          initial={{ opacity: 0, y: -18 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}
         >
-          <button className="back-link-btn" onClick={() => navigate("/form")}>
-            <ArrowLeft size={18} />
-            Back
-          </button>
-
-          <div className="lead-page-title-row">
-            <div>
-              <p className="dashboard-kicker">Lead Detail Workspace</p>
-              <h1>{lead.name}</h1>
-              <p className="lead-page-subtitle">
-                Review this customer profile and prepare the sales conversation.
-              </p>
-            </div>
-
-            <span className="lead-preview-tag">
-              {formatProduct(lead.product_interest)}
-            </span>
+          <div>
+            <p style={{ margin: "0 0 4px", fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#3535F3", fontWeight: 700 }}>
+              Lead Detail Workspace
+            </p>
+            <h1 style={{ margin: "0 0 6px", fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em", color: "#0f172a" }}>
+              {lead.name}
+            </h1>
+            <p style={{ margin: 0, color: "#6b7280", fontSize: "0.95rem" }}>
+              Review this customer profile and prepare the sales conversation.
+            </p>
           </div>
         </motion.div>
 
+        {/* Content */}
         <motion.div
-          className="lead-detail-layout"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.08 }}
+          style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px" }}
         >
-          <div className="lead-detail-left">
-            <div className="lead-info-card">
-              <div className="lead-info-header">
-                <div>
-                  <p className="dashboard-kicker">Customer Overview</p>
-                  <h2>{lead.name}</h2>
-                </div>
-                <span className="lead-status-badge">Active Lead</span>
+          {/* Left — Customer card */}
+          <div style={{
+            padding: "28px", borderRadius: "20px", background: "#ffffff",
+            border: "1px solid #e5e7eb", boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div>
+                <p style={{ margin: "0 0 4px", fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#3535F3", fontWeight: 700 }}>
+                  Customer Overview
+                </p>
+                <h2 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "#0f172a" }}>{lead.name}</h2>
               </div>
-
-              <div className="lead-info-grid">
-                <div className="lead-info-item">
-                  <span><MapPin size={16} /> City</span>
-                  <p>{getLeadLocation(lead)}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><MapPin size={16} /> Postal Code</span>
-                  <p>{getLeadPostalCode(lead)}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Users size={16} /> Household Size</span>
-                  <p>{lead.household_size || "—"} people</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Zap size={16} /> Electricity Usage</span>
-                  <p>{getLeadUsage(lead)} kWh</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Wallet size={16} /> Budget / Profile</span>
-                  <p>{getLeadBudget(lead)}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Target size={16} /> Product Interest</span>
-                  <p>{formatProduct(lead.product_interest)}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Home size={16} /> House Type</span>
-                  <p>{lead.house_type || "—"}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Calendar size={16} /> Build Year</span>
-                  <p>{lead.build_year || "—"}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Calendar size={16} /> Date of Birth</span>
-                  <p>{formatDob(lead.date_of_birth)}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><MapPin size={16} /> Roof Orientation</span>
-                  <p>{lead.roof_orientation || "—"}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Flame size={16} /> Heating Type</span>
-                  <p>{lead.heating_type || "—"}</p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><Wallet size={16} /> Monthly Energy Bill</span>
-                  <p>
-                    {lead.monthly_energy_bill_eur
-                      ? `€${lead.monthly_energy_bill_eur}`
-                      : "—"}
-                  </p>
-                </div>
-
-                <div className="lead-info-item">
-                  <span><FileText size={16} /> Existing Assets</span>
-                  <p>{lead.existing_assets || "—"}</p>
-                </div>
-
-                <div className="lead-info-item full-width">
-                  <span><FileText size={16} /> Notes / Goal</span>
-                  <p>{getLeadGoal(lead)}</p>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "14px", marginTop: "24px" }}>
-                <button
-                  className="primary-btn"
-                  onClick={handleOpenChat}
-                  style={{ minHeight: "48px", padding: "0 28px", fontSize: "0.95rem", fontWeight: 600 }}
-                >
-                  <MessageCircle size={18} style={{ marginRight: 8 }} />
-                  Start Sales Coaching
-                </button>
-              </div>
+              <span style={{
+                padding: "6px 12px", borderRadius: "999px", fontSize: "0.78rem", fontWeight: 600,
+                background: "rgba(53,53,243,0.08)", color: "#3535F3", border: "1px solid rgba(53,53,243,0.15)",
+              }}>
+                Active Lead
+              </span>
             </div>
 
-            <div className="lead-summary-card">
-              <p className="dashboard-kicker">Suggested Sales Angle</p>
-              <h3>How to approach this lead</h3>
-              <p>
+            {/* Data grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              {dataItems.map((item, j) => (
+                <div key={j} style={{
+                  padding: "14px 16px", borderRadius: "14px", background: "#f8f9fb", border: "1px solid #f1f5f9",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                    <span style={{ color: "#94a3b8" }}>{item.icon}</span>
+                    <span style={{ fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{item.label}</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.92rem", fontWeight: 600, color: "#0f172a" }}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Notes */}
+            {lead.notes && (
+              <div style={{
+                marginTop: "10px", padding: "14px 16px", borderRadius: "14px",
+                background: "#f8f9fb", border: "1px solid #f1f5f9",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                  <FileText size={14} style={{ color: "#94a3b8" }} />
+                  <span style={{ fontSize: "0.75rem", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>Notes</span>
+                </div>
+                <p style={{ margin: 0, fontSize: "0.92rem", color: "#475569" }}>{getLeadGoal(lead)}</p>
+              </div>
+            )}
+
+            {/* Action button */}
+            <div style={{ marginTop: "24px" }}>
+              <motion.button
+                onClick={handleOpenChat}
+                whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(53,53,243,0.3)" }}
+                whileTap={{ scale: 0.97 }}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "8px",
+                  padding: "12px 28px", borderRadius: "14px", border: "none",
+                  background: "#3535F3", color: "#fff", fontSize: "0.95rem",
+                  fontWeight: 600, cursor: "pointer",
+                  boxShadow: "0 4px 16px rgba(53,53,243,0.25)",
+                }}
+              >
+                <MessageCircle size={18} />
+                Talk to Cleo
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px", alignSelf: "start" }}>
+            {/* Sales angle */}
+            <div style={{
+              padding: "28px", borderRadius: "20px", background: "#ffffff",
+              border: "1px solid #e5e7eb", boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+            }}>
+              <p style={{ margin: "0 0 4px", fontSize: "0.7rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#3535F3", fontWeight: 700 }}>
+                Suggested Sales Angle
+              </p>
+              <h3 style={{ margin: "0 0 12px", fontSize: "1.1rem", fontWeight: 700, color: "#0f172a" }}>
+                How to approach this lead
+              </h3>
+              <p style={{ margin: 0, color: "#6b7280", lineHeight: 1.7, fontSize: "0.92rem" }}>
                 Focus on the customer's main priority, explain the long-term
                 value of the selected product, and connect the recommendation
                 to their household size, energy usage, current heating setup,
                 and financial profile.
               </p>
             </div>
+
+            {/* Documents */}
+            <DocumentsCard projectId={projectId} ensureProject={ensureProject} />
           </div>
-
-
         </motion.div>
       </div>
     </div>

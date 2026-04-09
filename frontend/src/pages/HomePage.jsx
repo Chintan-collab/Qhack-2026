@@ -6,9 +6,23 @@ import {
   Sparkles,
   ShieldCheck,
   LineChart,
+  Zap,
   Mail,
   Lock,
 } from "lucide-react";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.12, delayChildren: 0.2 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -37,53 +51,78 @@ export default function HomePage() {
       <section className="login-hero-section">
         <motion.div
           className="login-hero-left"
-          initial={{ opacity: 0, x: -35 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8 }}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
         >
-          <div className="login-brand">Cloover AI</div>
+          <motion.div variants={itemVariants} className="login-brand">
+            Cloover AI
+          </motion.div>
 
-          <div className="badge">
-            <Sparkles size={16} />
-            <span>AI-Powered Sales Intelligence</span>
-          </div>
+          <motion.div variants={itemVariants}>
+            <div className="badge">
+              <Sparkles size={16} />
+              <span>AI-Powered Sales Intelligence</span>
+            </div>
+          </motion.div>
 
-          <h1>
+          <motion.h1 variants={itemVariants}>
             Installer financing and
             <span className="gradient-text"> sales coaching</span>
             <br />
             in one workspace
-          </h1>
+          </motion.h1>
 
-          <p className="login-hero-description">
+          <motion.p variants={itemVariants} className="login-hero-description">
             Turn lead information into financing-ready recommendations,
             structured project insights, and guided sales conversations with a
             modern AI sales workflow.
-          </p>
+          </motion.p>
 
-          <div className="login-feature-list">
-            <div className="login-feature-item">
+          <motion.div variants={itemVariants} className="login-feature-list">
+            <motion.div
+              className="login-feature-item"
+              whileHover={{ x: 6, boxShadow: "0 8px 30px rgba(53,53,243,0.12)" }}
+              transition={{ duration: 0.2 }}
+            >
               <ShieldCheck size={18} />
               <span>Smarter lead qualification</span>
-            </div>
+            </motion.div>
 
-            <div className="login-feature-item">
+            <motion.div
+              className="login-feature-item"
+              whileHover={{ x: 6, boxShadow: "0 8px 30px rgba(53,53,243,0.12)" }}
+              transition={{ duration: 0.2 }}
+            >
               <LineChart size={18} />
               <span>Structured recommendations and financing insights</span>
-            </div>
-          </div>
+            </motion.div>
+
+            <motion.div
+              className="login-feature-item"
+              whileHover={{ x: 6, boxShadow: "0 8px 30px rgba(53,53,243,0.12)" }}
+              transition={{ duration: 0.2 }}
+            >
+              <Zap size={18} />
+              <span>Voice-powered sales coaching on the go</span>
+            </motion.div>
+          </motion.div>
         </motion.div>
 
         <motion.div
           className="login-hero-right"
-          initial={{ opacity: 0, y: 35 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.85, delay: 0.15 }}
+          initial={{ opacity: 0, y: 30, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
         >
-          <div className="login-card">
+          <motion.div
+            className="login-card"
+            whileHover={{ y: -4 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="login-card-header">
               <p className="section-kicker">Welcome back</p>
-              <h2>Sign in to AI Sales Coach</h2>
+              <h2>Sign in to Cleo</h2>
               <p className="login-card-subtitle">
                 Access your lead analysis workspace and generate sales-ready
                 reports.
@@ -139,8 +178,8 @@ export default function HomePage() {
               <motion.button
                 className="primary-btn login-submit-btn"
                 type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(53,53,243,0.3)" }}
+                whileTap={{ scale: 0.97 }}
               >
                 Login
                 <ArrowRight size={18} />
@@ -150,7 +189,7 @@ export default function HomePage() {
             <div className="login-footer-note">
               Secure access for installer and sales workflows
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       </section>
     </div>
