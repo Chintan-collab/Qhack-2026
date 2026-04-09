@@ -157,11 +157,8 @@ class SalesSupervisor(AgentOrchestrator):
             and sales_data.is_financial_complete()
         ):
             return SalesPhase.STRATEGY
-        if (
-            sales_data.phase == SalesPhase.STRATEGY
-            and sales_data.is_strategy_complete()
-        ):
-            return SalesPhase.DELIVERABLE
+        # Strategy → Deliverable is NOT auto-advanced here.
+        # Only the strategy agent's mark_strategy_complete tool advances it.
 
         return None
 
@@ -238,6 +235,82 @@ class SalesSupervisor(AgentOrchestrator):
             metadata=last_response.metadata,
         )
 
+    async def _is_question(self, text: str) -> bool:
+        """Detect if the user message is a question or general conversation
+        rather than a phase-advancing command."""
+        t = text.strip().lower()
+        # Short affirmative responses → not a question, let phase advance
+        affirmatives = [
+            "ok", "okay", "yes", "yep", "yeah", "sure", "go ahead",
+            "proceed", "continue", "next", "looks good", "good", "fine",
+            "move", "ready", "let's go", "do it", "perfect", "great",
+            "no changes", "all good", "approved", "confirm", "hi", "hello",
+            "hey", "start", "begin",
+        ]
+        if t in affirmatives or len(t) < 4:
+            return False
+        # If it contains a question mark → likely a question
+        if "?" in text:
+            return True
+        # If it starts with question words
+        q_words = ["what", "why", "how", "which", "when", "where", "who",
+                    "can", "could", "would", "should", "is", "are", "do",
+                    "does", "tell", "explain", "show", "compare", "clarify"]
+        first_word = t.split()[0] if t.split() else ""
+        if first_word in q_words:
+            return True
+        # Longer messages that aren't commands are likely questions/discussion
+        if len(t) > 60:
+            return True
+        return False
+
+    async def _answer_question(
+        self, context: AgentContext, message: AgentMessage
+    ) -> AgentMessage:
+        """Answer a user question using all accumulated data without advancing the phase."""
+        from app.agents.base.llm import chat_completion
+        import json
+
+        sd = _get_sales_data(context)
+        data_dump = sd.model_dump(exclude_none=True, exclude_defaults=True)
+        data_dump.pop("phase", None)
+
+        # Build conversation history
+        history_lines = []
+        for msg in context.history[-10:]:  # last 10 messages
+            role = "Installer" if msg.role == MessageRole.USER else "Cleo"
+            history_lines.append(f"{role}: {msg.content[:300]}")
+        history = "\n".join(history_lines)
+
+        system = (
+            "You are Cleo, Cloover's AI Sales Coach. The installer asked a question "
+            "during the sales coaching session. Answer it using ALL the data you have "
+            "— customer info, research findings, analysis, and strategy. Be helpful, "
+            "specific, and reference actual numbers/data when possible.\n\n"
+            "DO NOT advance the pipeline or change the topic. Just answer the question "
+            "and ask if they need anything else before continuing."
+        )
+
+        response = await chat_completion(
+            model="gemini-2.5-flash",
+            system=system,
+            messages=[
+                {"role": "user", "content": (
+                    f"Customer & pipeline data:\n{json.dumps(data_dump, indent=2, default=str)}\n\n"
+                    f"Recent conversation:\n{history}\n\n"
+                    f"Installer's question: {message.content}"
+                )},
+            ],
+            max_tokens=4096,
+        )
+
+        return AgentMessage(
+            role=MessageRole.ASSISTANT,
+            content=response.text,
+            agent_name="strategy",
+            metadata={"phase": sd.phase.value},
+        )
+
     async def execute(
         self, context: AgentContext, message: AgentMessage
     ) -> AgentMessage:
@@ -254,6 +327,11 @@ class SalesSupervisor(AgentOrchestrator):
                 agent_name="strategy",
                 metadata={"phase": "complete"},
             )
+
+        # If the user is asking a question, answer it without advancing the phase
+        if len(context.history) > 0 and await self._is_question(message.content):
+            logger.info("Detected question — answering without advancing phase")
+            return await self._answer_question(context, message)
 
         # Fast-forward on first message if data is complete
         fast_forwarded = self._maybe_fast_forward(context)
