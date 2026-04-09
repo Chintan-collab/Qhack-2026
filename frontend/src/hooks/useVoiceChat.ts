@@ -147,7 +147,7 @@ export function useVoiceChat(projectId?: string) {
 
   const cleanup = useCallback(() => {
     if (silenceCheckRef.current) {
-      cancelAnimationFrame(silenceCheckRef.current);
+      clearInterval(silenceCheckRef.current);
       silenceCheckRef.current = null;
     }
     if (silenceTimerRef.current) {
@@ -225,13 +225,14 @@ export function useVoiceChat(projectId?: string) {
     const dataArray = new Float32Array(analyser.fftSize);
     let silenceStart: number | null = null;
 
+    // Use setInterval instead of requestAnimationFrame so it
+    // keeps running when the browser tab is in the background.
     const check = () => {
       if (!analyserRef.current || !mediaRecorderRef.current) return;
       if (mediaRecorderRef.current.state !== "recording") return;
 
       analyser.getFloatTimeDomainData(dataArray);
 
-      // Calculate RMS (root mean square) for volume level
       let sum = 0;
       for (let i = 0; i < dataArray.length; i++) {
         const val = dataArray[i]!;
@@ -243,27 +244,23 @@ export function useVoiceChat(projectId?: string) {
         if (!silenceStart) {
           silenceStart = Date.now();
         } else if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
-          // Silence detected long enough — auto-stop
           stopRecording();
           return;
         }
       } else {
         silenceStart = null;
       }
-
-      silenceCheckRef.current = requestAnimationFrame(check);
     };
 
-    // Wait a brief moment before starting detection
-    // so we don't trigger on initial silence before user speaks
+    // Wait before starting detection so we don't trigger on initial silence
     silenceTimerRef.current = window.setTimeout(() => {
-      silenceCheckRef.current = requestAnimationFrame(check);
+      silenceCheckRef.current = window.setInterval(check, 100) as unknown as number;
     }, 1500);
   }, []);
 
   const stopRecording = useCallback(() => {
     if (silenceCheckRef.current) {
-      cancelAnimationFrame(silenceCheckRef.current);
+      clearInterval(silenceCheckRef.current);
       silenceCheckRef.current = null;
     }
     if (silenceTimerRef.current) {
@@ -379,11 +376,23 @@ export function useVoiceChat(projectId?: string) {
     [store, projectId],
   );
 
-  /** Start the continuous voice conversation loop */
-  const startLoop = useCallback(() => {
+  /** Start the continuous voice conversation loop with a greeting */
+  const startLoop = useCallback(async () => {
     loopActiveRef.current = true;
-    setState((s) => ({ ...s, isLoopActive: true, error: null }));
-    startRecording();
+    setState((s) => ({ ...s, isLoopActive: true, error: null, isSpeaking: true }));
+
+    // Cleo greets first
+    try {
+      await speak("Hey there! I'm Cleo, your AI sales coach. I've got the details on this lead. Go ahead — tell me what you need.", undefined);
+    } catch {
+      // TTS failed, continue anyway
+    }
+
+    setState((s) => ({ ...s, isSpeaking: false }));
+
+    if (loopActiveRef.current) {
+      startRecording();
+    }
   }, [startRecording]);
 
   /** Stop the entire loop */

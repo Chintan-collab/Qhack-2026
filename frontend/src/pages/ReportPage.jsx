@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { generateReport } from "../utils/generatePdf";
 import {
   ArrowLeft,
@@ -15,6 +15,24 @@ import {
   Target,
   CheckCircle2,
 } from "lucide-react";
+
+function CountUp({ value }) {
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (v) => Math.round(v));
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    const controls = animate(count, value, { duration: 1.5, ease: "easeOut" });
+    const unsub = rounded.on("change", (v) => setDisplay(v));
+    return () => { controls.stop(); unsub(); };
+  }, [value, count, rounded]);
+
+  return <span>{display}</span>;
+}
+
+const cardHover = {
+  whileHover: { y: -4, transition: { duration: 0.2 } },
+};
 
 export default function ReportPage() {
   const navigate = useNavigate();
@@ -38,11 +56,6 @@ export default function ReportPage() {
   if (!report) {
     return (
       <div className="report-page-wrapper">
-        <div className="background-blobs">
-          <div className="blob blob-1"></div>
-          <div className="blob blob-2"></div>
-          <div className="blob blob-3"></div>
-        </div>
 
         <div className="empty-report-state">
           <h2>No report found</h2>
@@ -59,12 +72,12 @@ export default function ReportPage() {
 
   return (
     <div className="report-page-wrapper">
-      <div className="background-blobs">
-        <div className="blob blob-1"></div>
-        <div className="blob blob-2"></div>
-        <div className="blob blob-3"></div>
-      </div>
-
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        backgroundImage: "linear-gradient(rgba(15,23,42,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.03) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+        maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.75), transparent 95%)",
+      }} />
       <section className="report-page-layout">
         <motion.div
           className="report-topbar"
@@ -72,9 +85,13 @@ export default function ReportPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55 }}
         >
-          <button className="back-link-btn" onClick={() => navigate("/form")}>
-            <ArrowLeft size={18} />
-            Back to Form
+          <button
+            className="back-link-btn"
+            onClick={() => navigate("/form")}
+            style={{ margin: 0 }}
+          >
+            <ArrowLeft size={16} />
+            Back
           </button>
 
           <div className="report-topbar-actions">
@@ -96,11 +113,6 @@ export default function ReportPage() {
           transition={{ duration: 0.65 }}
         >
           <div className="report-hero-left">
-            <div className="badge">
-              <Sparkles size={16} />
-              <span>AI Generated Sales Intelligence</span>
-            </div>
-
             <h1>
               Lead report for
               <span className="gradient-text"> sales-ready action</span>
@@ -197,12 +209,16 @@ export default function ReportPage() {
               </div>
 
               <div className="package-grid">
-                {(report.recommended_packages || []).map((pkg) => (
-                  <div
+                {(report.recommended_packages || []).map((pkg, i) => (
+                  <motion.div
                     className={`package-card ${
                       pkg.name === report.best_package ? "package-card-featured" : ""
                     }`}
                     key={pkg.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.15, duration: 0.4 }}
+                    {...cardHover}
                   >
                     <div className="package-header">
                       <h3>{pkg.name}</h3>
@@ -237,7 +253,7 @@ export default function ReportPage() {
                         <p>{pkg.target_customer}</p>
                       </div>
                     ) : null}
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </section>
@@ -251,12 +267,16 @@ export default function ReportPage() {
               </div>
 
               <div className="finance-grid">
-                {(report.financing_options || []).map((option) => (
-                  <div
+                {(report.financing_options || []).map((option, i) => (
+                  <motion.div
                     className={`finance-card ${
                       option.recommended ? "finance-card-featured" : ""
                     }`}
                     key={option.type}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.15, duration: 0.4 }}
+                    {...cardHover}
                   >
                     <div className="package-header">
                       <h3>{option.type}</h3>
@@ -281,7 +301,7 @@ export default function ReportPage() {
                         <p>{option.fit_reason}</p>
                       </div>
                     ) : null}
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </section>
@@ -374,8 +394,13 @@ export default function ReportPage() {
               </div>
 
               <div className="confidence-ring-wrapper">
-                <div className="confidence-ring">
-                  <span>{confidenceValue}</span>
+                <div
+                  className="confidence-ring"
+                  style={{
+                    background: `radial-gradient(circle at center, #ffffff 54%, transparent 55%), conic-gradient(#3535F3 0deg, #4747F5 ${confidenceValue * 3.6}deg, #e5e7eb ${confidenceValue * 3.6}deg 360deg)`,
+                  }}
+                >
+                  <CountUp value={confidenceValue} />
                 </div>
               </div>
 

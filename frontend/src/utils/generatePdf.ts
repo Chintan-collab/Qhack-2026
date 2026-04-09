@@ -1,13 +1,15 @@
 import jsPDF from "jspdf";
 
-// Cloover brand — light theme for PDF
+// Cloover brand — light theme for PDF (matches app)
 const INDIGO = "#3535F3";
 const INDIGO_LIGHT = "#4747F5";
-const PAGE_BG = "#ffffff";
-const CARD_BG = "#f8f9fb";
+const PAGE_BG = "#f9fafb";
+const CARD_BG = "#ffffff";
+const CARD_INNER = "#f8f9fb";
 const TEXT_PRIMARY = "#0f172a";
-const TEXT_SECONDARY = "#334155";
-const TEXT_MUTED = "#64748b";
+const TEXT_BODY = "#475569";
+const TEXT_SECONDARY = "#475569";
+const TEXT_MUTED = "#94a3b8";
 
 const PAGE_W = 210; // A4 mm
 const PAGE_H = 297;
@@ -51,29 +53,66 @@ interface ReportData {
   assumptions?: string[];
 }
 
+function drawGrid(doc: jsPDF) {
+  doc.setDrawColor("#eef0f4");
+  doc.setLineWidth(0.15);
+  for (let x = 0; x <= PAGE_W; x += 10) {
+    doc.line(x, 0, x, PAGE_H);
+  }
+  for (let y = 0; y <= PAGE_H; y += 10) {
+    doc.line(0, y, PAGE_W, y);
+  }
+}
+
 function addPage(doc: jsPDF) {
   doc.addPage();
-  // Dark background
   doc.setFillColor(PAGE_BG);
   doc.rect(0, 0, PAGE_W, PAGE_H, "F");
+  drawGrid(doc);
 }
 
 function drawCard(doc: jsPDF, x: number, y: number, w: number, h: number, highlight = false) {
-  doc.setFillColor(highlight ? "#eeeeff" : CARD_BG);
-  doc.roundedRect(x, y, w, h, 4, 4, "F");
-  if (highlight) {
-    doc.setDrawColor(INDIGO);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(x, y, w, h, 4, 4, "S");
-  } else {
-    doc.setDrawColor("#e2e8f0");
-    doc.setLineWidth(0.3);
-    doc.roundedRect(x, y, w, h, 4, 4, "S");
-  }
+  doc.setFillColor(highlight ? "#f0f0ff" : CARD_BG);
+  doc.roundedRect(x, y, w, h, 3, 3, "F");
+  doc.setDrawColor(highlight ? INDIGO : "#e5e7eb");
+  doc.setLineWidth(highlight ? 0.4 : 0.2);
+  doc.roundedRect(x, y, w, h, 3, 3, "S");
 }
 
 function wrapText(doc: jsPDF, text: string, maxWidth: number): string[] {
   return doc.splitTextToSize(text, maxWidth);
+}
+
+// ── Font helpers for consistent typography ──
+function setHeading(doc: jsPDF, size = 16) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(size);
+  doc.setTextColor(TEXT_PRIMARY);
+}
+function setSubheading(doc: jsPDF, size = 11) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(size);
+  doc.setTextColor(TEXT_PRIMARY);
+}
+function setBody(doc: jsPDF, size = 9) {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(size);
+  doc.setTextColor(TEXT_BODY);
+}
+function setLabel(doc: jsPDF, size = 7) {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(size);
+  doc.setTextColor(TEXT_MUTED);
+}
+function setAccent(doc: jsPDF, size = 7) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(size);
+  doc.setTextColor(INDIGO);
+}
+function setValue(doc: jsPDF, size = 12) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(size);
+  doc.setTextColor(TEXT_PRIMARY);
 }
 
 export function generateReport(report: ReportData) {
@@ -82,72 +121,73 @@ export function generateReport(report: ReportData) {
   // ─── PAGE 1: Cover ───────────────────────────────────────────
   doc.setFillColor(PAGE_BG);
   doc.rect(0, 0, PAGE_W, PAGE_H, "F");
+  drawGrid(doc);
 
   // Accent bar
   doc.setFillColor(INDIGO);
   doc.rect(0, 0, PAGE_W, 4, "F");
 
   // Logo area
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(28);
-  doc.setTextColor(TEXT_PRIMARY);
+  setHeading(doc, 22);
   doc.text("Cloover", MARGIN, 40);
 
-  doc.setFontSize(12);
-  doc.setTextColor(INDIGO_LIGHT);
-  doc.text("AI Sales Coach Report", MARGIN, 50);
+  setAccent(doc, 10);
+  doc.text("AI Sales Coach Report", MARGIN, 48);
 
   // Title
-  doc.setFontSize(32);
-  doc.setTextColor(TEXT_PRIMARY);
-  doc.text("Sales Briefing", MARGIN, 85);
+  setHeading(doc, 24);
+  doc.text("Sales Briefing", MARGIN, 75);
 
-  doc.setFontSize(14);
-  doc.setTextColor(TEXT_SECONDARY);
+  setBody(doc, 11);
   const interest = report.customer_summary?.product_interest || "Energy Solutions";
-  doc.text(`${interest} — Personalized Recommendation`, MARGIN, 96);
+  doc.text(`${interest} — Personalized Recommendation`, MARGIN, 84);
 
   // Customer card
-  const custY = 115;
-  drawCard(doc, MARGIN, custY, CONTENT_W, 55);
+  const custY = 100;
+  drawCard(doc, MARGIN, custY, CONTENT_W, 58);
 
-  doc.setFontSize(10);
-  doc.setTextColor(TEXT_MUTED);
+  setAccent(doc, 8);
   doc.text("CUSTOMER OVERVIEW", MARGIN + 8, custY + 10);
 
-  doc.setFontSize(11);
-  doc.setTextColor(TEXT_PRIMARY);
+  setBody(doc, 9);
   const profile = report.customer_summary?.estimated_profile || "—";
   const profileLines = wrapText(doc, profile, CONTENT_W - 16);
-  doc.text(profileLines, MARGIN + 8, custY + 20);
+  doc.text(profileLines.slice(0, 3), MARGIN + 8, custY + 18);
 
-  doc.setFontSize(9);
-  doc.setTextColor(TEXT_SECONDARY);
-  const details = [
-    `Postcode: ${report.customer_summary?.postcode || "—"}`,
-    `Interest: ${report.customer_summary?.product_interest || "—"}`,
-    `Budget: ${report.customer_summary?.budget_band || "—"}`,
-    `Goal: ${report.customer_summary?.customer_goal || "—"}`,
+  setBody(doc, 8);
+  const detailPairs = [
+    ["Postcode", report.customer_summary?.postcode || "—"],
+    ["Interest", report.customer_summary?.product_interest || "—"],
+    ["Budget", report.customer_summary?.budget_band || "—"],
   ];
-  doc.text(details, MARGIN + 8, custY + 36);
+  let dy = custY + 34;
+  for (const [lbl, val] of detailPairs) {
+    const wrapped = wrapText(doc, `${lbl}: ${val}`, CONTENT_W - 16);
+    doc.text(wrapped.slice(0, 1), MARGIN + 8, dy);
+    dy += 4;
+  }
+  const goalText = `Goal: ${report.customer_summary?.customer_goal || "—"}`;
+  const goalLines = wrapText(doc, goalText, CONTENT_W - 16);
+  doc.text(goalLines.slice(0, 2), MARGIN + 8, dy);
 
   // AI Summary
-  const sumY = 185;
-  drawCard(doc, MARGIN, sumY, CONTENT_W, 45, true);
-  doc.setFontSize(10);
-  doc.setTextColor(INDIGO_LIGHT);
-  doc.text("AI SUMMARY", MARGIN + 8, sumY + 10);
-  doc.setFontSize(10);
-  doc.setTextColor(TEXT_PRIMARY);
+  const sumY = 172;
+  setBody(doc, 9);
   const sumLines = wrapText(doc, report.ai_summary || "No summary available.", CONTENT_W - 16);
-  doc.text(sumLines.slice(0, 8), MARGIN + 8, sumY + 18);
+  const sumShown = sumLines.slice(0, 10);
+  const sumCardH = 14 + sumShown.length * 4;
+  drawCard(doc, MARGIN, sumY, CONTENT_W, sumCardH, true);
+  setAccent(doc, 8);
+  doc.text("AI SUMMARY", MARGIN + 8, sumY + 10);
+  setBody(doc, 9);
+  doc.text(sumShown, MARGIN + 8, sumY + 18);
 
   // Confidence + Best package footer
-  doc.setFontSize(9);
-  doc.setTextColor(TEXT_MUTED);
-  doc.text(`Confidence: ${report.confidence ?? 0}/100`, MARGIN, 250);
-  doc.text(`Best Package: ${report.best_package || "—"}`, MARGIN + 80, 250);
-  doc.text(`Generated by Cleo — Cloover AI Sales Coach`, MARGIN, 285);
+  const footerY = sumY + sumCardH + 12;
+  setLabel(doc, 9);
+  doc.text(`Confidence: ${report.confidence ?? 0}/100`, MARGIN, footerY);
+  doc.text(`Best Package: ${report.best_package || "—"}`, MARGIN + 80, footerY);
+  doc.text(`Generated by Cleo — Cloover AI Sales Coach`, MARGIN, PAGE_H - 12);
 
   // ─── PAGE 2: Market Context + Packages ───────────────────────
   addPage(doc);
@@ -158,25 +198,24 @@ export function generateReport(report: ReportData) {
   doc.rect(0, 0, PAGE_W, 3, "F");
 
   // Market Context
-  doc.setFontSize(14);
-  doc.setTextColor(TEXT_PRIMARY);
+  setHeading(doc, 14);
   doc.text("Market & Regulatory Context", MARGIN, y + 10);
   y += 16;
 
-  drawCard(doc, MARGIN, y, CONTENT_W, 50);
-  doc.setFontSize(9);
-  doc.setTextColor(TEXT_SECONDARY);
+  setBody(doc, 9);
+  const mktLines = wrapText(doc, report.market_context?.summary || "No market data.", CONTENT_W - 16);
+  const mktShown = mktLines.slice(0, 12);
+  const mktCardH = 20 + mktShown.length * 4;
+  drawCard(doc, MARGIN, y, CONTENT_W, mktCardH);
+  setLabel(doc, 8);
   const signal = report.market_context?.relevance_signal || "Medium";
   doc.text(`Relevance: ${signal}`, MARGIN + 8, y + 9);
-  doc.setFontSize(10);
-  doc.setTextColor(TEXT_PRIMARY);
-  const mktLines = wrapText(doc, report.market_context?.summary || "No market data.", CONTENT_W - 16);
-  doc.text(mktLines.slice(0, 10), MARGIN + 8, y + 17);
-  y += 58;
+  setBody(doc, 9);
+  doc.text(mktShown, MARGIN + 8, y + 17);
+  y += mktCardH + 8;
 
   // Recommended Packages
-  doc.setFontSize(14);
-  doc.setTextColor(TEXT_PRIMARY);
+  setHeading(doc, 14);
   doc.text("Recommended Packages", MARGIN, y);
   y += 8;
 
@@ -192,45 +231,39 @@ export function generateReport(report: ReportData) {
 
     let py = y + 8;
     // Name
-    doc.setFontSize(11);
-    doc.setTextColor(isBest ? INDIGO_LIGHT : TEXT_PRIMARY);
+    setSubheading(doc, 10);
+    if (isBest) doc.setTextColor(INDIGO);
     doc.text(pkg.name, px + 6, py);
     if (isBest) {
-      doc.setFontSize(7);
-      doc.setTextColor(INDIGO);
-      doc.text("BEST FIT", px + colW - 22, py);
+      py += 4;
+      setAccent(doc, 6);
+      doc.text("BEST FIT", px + 6, py);
     }
-    py += 7;
+    py += 5;
 
     // System
-    doc.setFontSize(8);
-    doc.setTextColor(TEXT_SECONDARY);
+    setBody(doc, 7.5);
     const sysLines = wrapText(doc, pkg.system, colW - 12);
     doc.text(sysLines.slice(0, 3), px + 6, py);
-    py += sysLines.slice(0, 3).length * 3.5 + 4;
+    py += sysLines.slice(0, 3).length * 3.2 + 4;
 
     // Capex
-    doc.setFontSize(7);
-    doc.setTextColor(TEXT_MUTED);
+    setLabel(doc, 6.5);
     doc.text("CAPEX", px + 6, py);
-    doc.setFontSize(13);
-    doc.setTextColor(TEXT_PRIMARY);
-    doc.text(`€${Number(pkg.capex).toLocaleString("de-DE")}`, px + 6, py + 6);
-    py += 12;
+    setValue(doc, 11);
+    doc.text(`€${Number(pkg.capex).toLocaleString("de-DE")}`, px + 6, py + 5);
+    py += 11;
 
     // Savings
-    doc.setFontSize(7);
-    doc.setTextColor(TEXT_MUTED);
+    setLabel(doc, 6.5);
     doc.text("ANNUAL SAVINGS", px + 6, py);
-    doc.setFontSize(11);
-    doc.setTextColor(INDIGO_LIGHT);
+    setAccent(doc, 10);
     doc.text(`€${Number(pkg.annual_savings).toLocaleString("de-DE")}/yr`, px + 6, py + 5);
     py += 10;
 
     // Fit reason
     if (pkg.fit_reason) {
-      doc.setFontSize(7);
-      doc.setTextColor(TEXT_SECONDARY);
+      setBody(doc, 7);
       const fitLines = wrapText(doc, pkg.fit_reason, colW - 12);
       doc.text(fitLines.slice(0, 2), px + 6, py);
     }
@@ -247,8 +280,7 @@ export function generateReport(report: ReportData) {
   }
 
   // Financing Options
-  doc.setFontSize(14);
-  doc.setTextColor(TEXT_PRIMARY);
+  setHeading(doc, 14);
   doc.text("Financing Options", MARGIN, y);
   y += 8;
 
@@ -259,29 +291,25 @@ export function generateReport(report: ReportData) {
     drawCard(doc, fx, y, colW, 50, fin.recommended);
 
     let fy = y + 8;
-    doc.setFontSize(10);
-    doc.setTextColor(fin.recommended ? INDIGO_LIGHT : TEXT_PRIMARY);
+    setSubheading(doc, 9);
+    if (fin.recommended) doc.setTextColor(INDIGO);
     doc.text(fin.type, fx + 6, fy);
     if (fin.recommended) {
-      doc.setFontSize(7);
-      doc.setTextColor(INDIGO);
-      doc.text("RECOMMENDED", fx + colW - 30, fy);
+      fy += 4;
+      setAccent(doc, 6);
+      doc.text("RECOMMENDED", fx + 6, fy);
     }
-    fy += 8;
+    fy += 5;
 
-    doc.setFontSize(7);
-    doc.setTextColor(TEXT_MUTED);
+    setLabel(doc, 6.5);
     doc.text("MONTHLY", fx + 6, fy);
-    doc.setFontSize(12);
-    doc.setTextColor(TEXT_PRIMARY);
+    setValue(doc, 11);
     doc.text(`€${fin.monthly_payment}`, fx + 6, fy + 5);
     fy += 10;
 
-    doc.setFontSize(7);
-    doc.setTextColor(TEXT_MUTED);
+    setLabel(doc, 6.5);
     doc.text("TOTAL COST", fx + 6, fy);
-    doc.setFontSize(10);
-    doc.setTextColor(TEXT_SECONDARY);
+    setBody(doc, 9);
     doc.text(`€${Number(fin.total_cost).toLocaleString("de-DE")}`, fx + 6, fy + 5);
   }
 
@@ -295,13 +323,9 @@ export function generateReport(report: ReportData) {
     doc.rect(0, 0, PAGE_W, 3, "F");
   }
 
-  doc.setFontSize(14);
-  doc.setTextColor(TEXT_PRIMARY);
+  setHeading(doc, 14);
   doc.text("Installer Pitch Guidance", MARGIN, y);
   y += 8;
-
-  drawCard(doc, MARGIN, y, CONTENT_W, 65);
-  let py = y + 10;
 
   const pitchItems = [
     { label: "RECOMMENDED OPENING", value: report.installer_pitch?.recommended_opening },
@@ -309,19 +333,29 @@ export function generateReport(report: ReportData) {
     { label: "SALES FOCUS", value: report.installer_pitch?.sales_focus },
   ];
 
+  // Calculate dynamic card height
+  doc.setFontSize(9);
+  let pitchH = 16;
   for (const item of pitchItems) {
-    doc.setFontSize(7);
-    doc.setTextColor(INDIGO_LIGHT);
-    doc.text(item.label, MARGIN + 8, py);
-    py += 4;
-    doc.setFontSize(9);
-    doc.setTextColor(TEXT_PRIMARY);
     const lines = wrapText(doc, item.value || "—", CONTENT_W - 16);
-    doc.text(lines.slice(0, 2), MARGIN + 8, py);
-    py += lines.slice(0, 2).length * 4 + 4;
+    pitchH += 4 + lines.slice(0, 4).length * 3.8 + 4;
   }
 
-  y = py + 10;
+  drawCard(doc, MARGIN, y, CONTENT_W, pitchH);
+  let py = y + 10;
+
+  for (const item of pitchItems) {
+    setAccent(doc, 7);
+    doc.text(item.label, MARGIN + 8, py);
+    py += 4;
+    setBody(doc, 8.5);
+    const lines = wrapText(doc, item.value || "—", CONTENT_W - 16);
+    const shown = lines.slice(0, 4);
+    doc.text(shown, MARGIN + 8, py);
+    py += shown.length * 3.8 + 4;
+  }
+
+  y = py + 6;
 
   // Best Package Details
   if (report.best_package_details) {
@@ -332,39 +366,47 @@ export function generateReport(report: ReportData) {
       doc.rect(0, 0, PAGE_W, 3, "F");
     }
 
-    drawCard(doc, MARGIN, y, CONTENT_W, 35, true);
-    doc.setFontSize(7);
-    doc.setTextColor(INDIGO_LIGHT);
+    setBody(doc, 9);
+    const spLines = wrapText(doc, report.best_package_details.sales_pitch || "—", CONTENT_W - 16);
+    const spShown = spLines.slice(0, 6);
+    const spCardH = 20 + spShown.length * 4;
+    drawCard(doc, MARGIN, y, CONTENT_W, spCardH, true);
+    setAccent(doc, 7);
     doc.text("BEST PACKAGE — SALES PITCH", MARGIN + 8, y + 9);
-    doc.setFontSize(10);
-    doc.setTextColor(TEXT_PRIMARY);
-    const pitchLines = wrapText(doc, report.best_package_details.sales_pitch || "—", CONTENT_W - 16);
-    doc.text(pitchLines.slice(0, 4), MARGIN + 8, y + 16);
+    setBody(doc, 9);
+    doc.text(spShown, MARGIN + 8, y + 16);
+    y += spCardH + 4;
   }
 
   // Assumptions on last page
   if (report.assumptions?.length) {
     y += 45;
-    if (y > 260) {
+    if (y > 240) {
       addPage(doc);
       y = 16;
       doc.setFillColor(INDIGO);
       doc.rect(0, 0, PAGE_W, 3, "F");
     }
-    doc.setFontSize(9);
-    doc.setTextColor(TEXT_MUTED);
+    setLabel(doc, 9);
     doc.text("Assumptions:", MARGIN, y);
-    y += 5;
-    doc.setFontSize(8);
+    y += 6;
+    setBody(doc, 7.5);
     for (const a of report.assumptions.slice(0, 6)) {
-      doc.text(`• ${a}`, MARGIN + 4, y);
-      y += 4;
+      const lines = wrapText(doc, `• ${a}`, CONTENT_W - 8);
+      for (const line of lines) {
+        if (y > PAGE_H - 20) {
+          addPage(doc);
+          y = 16;
+        }
+        doc.text(line, MARGIN + 4, y);
+        y += 3.5;
+      }
+      y += 1;
     }
   }
 
   // Footer on last page
-  doc.setFontSize(8);
-  doc.setTextColor(TEXT_MUTED);
+  setLabel(doc, 8);
   doc.text("Generated by Cleo — Cloover AI Sales Coach", MARGIN, PAGE_H - 10);
   doc.text(new Date().toLocaleDateString("de-DE"), PAGE_W - MARGIN - 25, PAGE_H - 10);
 
