@@ -1,5 +1,8 @@
 # Cleo — AI Sales Coach for Clean Energy Installers
 
+# Presentation Link
+https://drive.google.com/drive/folders/1txEkJplzoX1lyu9aEIrVuP7AD1lHu_kl?usp=sharing
+
 > Built at Q-Hack 2026 for the Cloover Challenge
 
 ## The Problem
