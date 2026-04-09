@@ -110,8 +110,24 @@ class SalesSupervisor(AgentOrchestrator):
         self, context: AgentContext, message: AgentMessage
     ) -> BaseAgent:
         sales_data = _get_sales_data(context)
-        phase = sales_data.phase
 
+        # Auto-advance if current phase is already complete
+        advanced = True
+        while advanced:
+            advanced = False
+            if sales_data.phase == SalesPhase.ANALYSIS and sales_data.is_analysis_complete():
+                sales_data.phase = SalesPhase.FINANCIAL
+                advanced = True
+            elif sales_data.phase == SalesPhase.FINANCIAL and sales_data.is_financial_complete():
+                sales_data.phase = SalesPhase.STRATEGY
+                advanced = True
+            elif sales_data.phase == SalesPhase.RESEARCH and sales_data.is_research_complete():
+                sales_data.phase = SalesPhase.ANALYSIS
+                advanced = True
+        if sales_data.phase != _get_sales_data(context).phase:
+            _save_sales_data(context, sales_data)
+
+        phase = sales_data.phase
         agent_name = PHASE_AGENT_MAP.get(phase)
         if agent_name:
             agent = registry.get(agent_name)
