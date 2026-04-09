@@ -49,6 +49,12 @@ interface ReportData {
     likely_objection?: string;
     sales_focus?: string;
   };
+  credit_assessment?: {
+    risk_level?: string;
+    co_applicant_needed?: boolean;
+    financing_recommendation?: string;
+    reasoning?: string;
+  };
   confidence?: number;
   assumptions?: string[];
 }
@@ -376,6 +382,48 @@ export function generateReport(report: ReportData) {
     setBody(doc, 9);
     doc.text(spShown, MARGIN + 8, y + 16);
     y += spCardH + 4;
+  }
+
+  // Credit Assessment
+  if (report.credit_assessment) {
+    y += 6;
+    if (y > 240) {
+      addPage(doc);
+      y = 16;
+      doc.setFillColor(INDIGO);
+      doc.rect(0, 0, PAGE_W, 3, "F");
+    }
+    const ca = report.credit_assessment;
+    const riskColor = ca.risk_level === "LOW" ? "#16a34a" : ca.risk_level === "HIGH" ? "#dc2626" : "#d97706";
+    drawCard(doc, MARGIN, y, CONTENT_W, 36);
+    setAccent(doc, 7);
+    doc.text("CREDIT ASSESSMENT — FOR CLOOVER FINANCING TEAM", MARGIN + 8, y + 9);
+
+    setLabel(doc, 7);
+    doc.text("Risk Level:", MARGIN + 8, y + 16);
+    doc.setTextColor(riskColor);
+    doc.setFont("helvetica", "bold");
+    doc.text(ca.risk_level || "MEDIUM", MARGIN + 30, y + 16);
+
+    setLabel(doc, 7);
+    doc.text("Co-applicant:", MARGIN + 60, y + 16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(TEXT_PRIMARY);
+    doc.text(ca.co_applicant_needed ? "Yes" : "No", MARGIN + 85, y + 16);
+
+    setLabel(doc, 7);
+    doc.text("Recommendation:", MARGIN + 100, y + 16);
+    const recColor = ca.financing_recommendation === "Yes" ? "#16a34a" : ca.financing_recommendation === "Review needed" ? "#dc2626" : "#d97706";
+    doc.setTextColor(recColor);
+    doc.setFont("helvetica", "bold");
+    doc.text(ca.financing_recommendation || "Review needed", MARGIN + 130, y + 16);
+
+    if (ca.reasoning) {
+      setBody(doc, 8);
+      const reasonLines = wrapText(doc, ca.reasoning, CONTENT_W - 16);
+      doc.text(reasonLines.slice(0, 2), MARGIN + 8, y + 24);
+    }
+    y += 40;
   }
 
   // Assumptions on last page

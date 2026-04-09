@@ -123,6 +123,12 @@ markdown fences, no explanatory text.
     "likely_objection": "<most likely customer objection and how to handle it>",
     "sales_focus": "<what to emphasize in the conversation>"
   },
+  "credit_assessment": {
+    "risk_level": "<LOW|MEDIUM|HIGH>",
+    "co_applicant_needed": <true|false>,
+    "financing_recommendation": "<Yes|Yes with conditions|Review needed>",
+    "reasoning": "<1-2 sentences explaining the assessment based on available data>"
+  },
   "confidence": <0-100 integer>,
   "assumptions": ["<list of assumptions made due to missing data>"]
 }
