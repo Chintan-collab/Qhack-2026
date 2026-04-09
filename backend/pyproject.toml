@@ -1,7 +1,14 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [project]
-name = "multi-agent-chat-backend"
+name = "cleo-backend"
 version = "0.1.0"
-description = "Multi-agentic AI chat backend"
+description = "Cleo - AI Sales Coach for energy installers"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
@@ -21,6 +28,7 @@ dependencies = [
     "openai>=1.0.0",
     "langchain-core>=0.3.0",
     "langgraph>=0.2.0",
+    "elevenlabs>=2.0.0",
 ]
 
 [project.optional-dependencies]
