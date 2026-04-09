@@ -31,6 +31,7 @@ export default function ChatView() {
   };
 
   // Flash + toast animation when phase changes
+  // Auto-generate report when pipeline completes
   useEffect(() => {
     if (currentPhase && currentPhase !== prevPhaseRef.current) {
       const prev = prevPhaseRef.current;
@@ -41,8 +42,14 @@ export default function ChatView() {
       if (prev) {
         setPhaseToast(`${phaseLabels[prev] || prev} complete — moving to ${phaseLabels[currentPhase] || currentPhase}`);
         const t2 = setTimeout(() => setPhaseToast(null), 3000);
-        return () => { clearTimeout(t1); clearTimeout(t2); };
       }
+
+      // Auto-trigger report when reaching deliverable/complete
+      if ((currentPhase === "deliverable" || currentPhase === "complete") && projectId && !isGeneratingReport) {
+        setPhaseToast("Pipeline complete — generating your report...");
+        handleGenerateReport();
+      }
+
       return () => clearTimeout(t1);
     }
   }, [currentPhase]);
