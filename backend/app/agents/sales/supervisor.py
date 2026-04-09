@@ -15,6 +15,7 @@ PHASE_AGENT_MAP: dict[SalesPhase, str] = {
     SalesPhase.FINANCIAL: "financial",
     SalesPhase.STRATEGY: "strategy",
     SalesPhase.DELIVERABLE: "pitch_deck",
+    SalesPhase.COMPLETE: "pitch_deck",
 }
 
 # Handoff prompts — only used for automatic silent transitions.
@@ -112,19 +113,24 @@ class SalesSupervisor(AgentOrchestrator):
         sales_data = _get_sales_data(context)
 
         # Auto-advance if current phase is already complete
+        original_phase = sales_data.phase
         advanced = True
         while advanced:
             advanced = False
-            if sales_data.phase == SalesPhase.ANALYSIS and sales_data.is_analysis_complete():
+            if sales_data.phase == SalesPhase.RESEARCH and sales_data.is_research_complete():
+                sales_data.phase = SalesPhase.ANALYSIS
+                advanced = True
+            elif sales_data.phase == SalesPhase.ANALYSIS and sales_data.is_analysis_complete():
                 sales_data.phase = SalesPhase.FINANCIAL
                 advanced = True
             elif sales_data.phase == SalesPhase.FINANCIAL and sales_data.is_financial_complete():
                 sales_data.phase = SalesPhase.STRATEGY
                 advanced = True
-            elif sales_data.phase == SalesPhase.RESEARCH and sales_data.is_research_complete():
-                sales_data.phase = SalesPhase.ANALYSIS
+            elif sales_data.phase == SalesPhase.STRATEGY and sales_data.is_strategy_complete():
+                sales_data.phase = SalesPhase.DELIVERABLE
                 advanced = True
-        if sales_data.phase != _get_sales_data(context).phase:
+        if sales_data.phase != original_phase:
+            logger.info(f"Route auto-advanced: {original_phase.value} -> {sales_data.phase.value}")
             _save_sales_data(context, sales_data)
 
         phase = sales_data.phase
