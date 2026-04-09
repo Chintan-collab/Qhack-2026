@@ -91,7 +91,9 @@ export function useChat(projectId?: string) {
         timestamp: new Date().toISOString(),
       };
       store.addMessage(userMessage);
+      store.setIsStreaming(true);
 
+      try {
       const response = await api.chat.send({
         conversation_id: store.activeConversationId ?? undefined,
         project_id: projectId ?? undefined,
@@ -118,6 +120,9 @@ export function useChat(projectId?: string) {
         metadata: response.metadata,
       };
       store.addMessage(assistantMessage);
+      } finally {
+        store.setIsStreaming(false);
+      }
     },
     [store, projectId],
   );

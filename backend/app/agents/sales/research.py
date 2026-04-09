@@ -35,13 +35,16 @@ IMPORTANT INTERACTION RULES:
 - Do NOT ask the installer what to search. You already have the data — \
 just do the research proactively.
 - After completing your research, present a clear summary of findings.
-- Then ASK the installer: "Do you have any additional context about this \
-customer, or specific areas you'd like me to dig deeper into? When you're \
-ready, say **'move to strategy'** and I'll help build your pitch."
-- If the installer provides more context or asks for more research, do it.
-- Only call `mark_research_complete` when the installer explicitly says \
-to proceed to strategy (e.g. "move to strategy", "let's proceed", "looks good").
-- You are NOT allowed to auto-advance. Wait for the installer's go-ahead."""
+- End with ONE meaningful question like: "I found that this customer \
+could qualify for up to 70% subsidy on a heat pump. Before I build the \
+strategy — is there anything specific about this customer's situation \
+that the data doesn't show? For example, have they mentioned any concerns \
+or preferences in previous calls?"
+- If the installer provides context, incorporate it and call \
+`mark_research_complete` to move on.
+- If they say "looks good", "no", "go ahead", or similar — call \
+`mark_research_complete` immediately.
+- Keep the conversation moving. Don't make the installer repeat themselves."""
 
 SEARCH_TOOL = {
     "name": "web_search",
@@ -215,9 +218,9 @@ class ResearchAgent(BaseAgent):
             f"- Market trends, typical pricing\n\n"
             f"**Key Takeaways for This Customer**\n"
             f"- What matters most for this specific situation\n\n"
-            f"End by asking the installer: \"Do you have any additional "
-            f"context about this customer? When ready, say **move to strategy** "
-            f"and I'll help build your pitch.\"\n\n"
+            f"End with ONE specific, useful question based on your findings. "
+            f"Example: 'I found X subsidy could save them Y. Before I build "
+            f"the pitch — anything from your calls with them I should know?'\n\n"
             f"Also call `store_research` to save the structured findings."
         )
 
