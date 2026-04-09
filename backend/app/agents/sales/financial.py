@@ -588,7 +588,7 @@ def _build_summary(data: SalesData) -> str:
 
 
 NARRATIVE_SYSTEM = """\
-You are a sales coach writing a 2-3 sentence affordability briefing for \
+You are a sales coach writing an affordability and credit risk briefing for \
 an energy installer sales rep. You receive structured financing scenarios \
 the rep can propose to the customer. Your job is to:
 
@@ -596,19 +596,44 @@ the rep can propose to the customer. Your job is to:
 2. Explain in plain language why it fits (cash position, age-based risk, \
    total savings).
 3. Warn the rep about any age-based risk flags that are yellow or red.
+4. Provide a **Credit Risk Assessment** based on available data:
+   - Infer creditworthiness from: financial_profile, age, household_size, \
+     house ownership (detached house = likely owner = positive signal), \
+     monthly energy bill (proxy for disposable income), existing_assets.
+   - Rate the financing risk as: LOW / MEDIUM / HIGH
+   - Flag if a co-applicant might be needed (e.g. single income, older \
+     customer with long loan term, limited budget profile).
+   - Note: we don't have SCHUFA data — this is an intelligent estimate \
+     for the installer to flag with Cloover's financing team.
+5. State a clear **Financing Recommendation**: should Cloover offer \
+   financing to this customer? (Yes / Yes with conditions / Review needed)
 
-Be concise, grounded, and practical. No marketing fluff. No disclaimers."""
+Be concise, grounded, and practical. No marketing fluff."""
 
 
 NARRATIVE_TOOL = {
     "name": "store_affordability_narrative",
-    "description": "Store the short affordability briefing for the sales rep.",
+    "description": "Store the affordability briefing with credit risk assessment.",
     "input_schema": {
         "type": "object",
         "properties": {
             "narrative": {"type": "string"},
+            "credit_risk": {
+                "type": "string",
+                "enum": ["LOW", "MEDIUM", "HIGH"],
+                "description": "Inferred credit risk level",
+            },
+            "co_applicant_flag": {
+                "type": "boolean",
+                "description": "True if a co-applicant might be needed",
+            },
+            "financing_recommendation": {
+                "type": "string",
+                "enum": ["Yes", "Yes with conditions", "Review needed"],
+                "description": "Should Cloover offer financing?",
+            },
         },
-        "required": ["narrative"],
+        "required": ["narrative", "credit_risk", "financing_recommendation"],
     },
 }
 
@@ -756,7 +781,7 @@ class FinancialAgent(BaseAgent):
                     {
                         "role": "user",
                         "content": (
-                            "Write the 2-3 sentence affordability briefing now."
+                            "Write the affordability briefing with credit risk assessment now."
                         ),
                     }
                 ],
@@ -767,6 +792,19 @@ class FinancialAgent(BaseAgent):
                     narrative = str(tc.input.get("narrative", "")).strip()
                     if narrative:
                         sales_data.affordability_narrative = narrative
+                    # Store credit risk fields in strategy_notes via shared_state
+                    credit_risk = tc.input.get("credit_risk", "MEDIUM")
+                    co_applicant = tc.input.get("co_applicant_flag", False)
+                    fin_rec = tc.input.get("financing_recommendation", "Review needed")
+                    # Append to narrative for display
+                    risk_section = (
+                        f"\n\n**Credit Risk Assessment:** {credit_risk}"
+                        f"\n**Co-applicant needed:** {'Yes' if co_applicant else 'No'}"
+                        f"\n**Financing Recommendation for Cloover:** {fin_rec}"
+                    )
+                    sales_data.affordability_narrative = (
+                        (sales_data.affordability_narrative or "") + risk_section
+                    )
             if not sales_data.affordability_narrative and response.text.strip():
                 sales_data.affordability_narrative = response.text.strip()
         except Exception as exc:  # pragma: no cover - demo resilience

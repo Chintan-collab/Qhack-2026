@@ -387,6 +387,49 @@ export default function ReportPage() {
               </div>
             </section>
 
+            {report.credit_assessment && (
+              <section className="report-side-card">
+                <div className="card-title-left">
+                  <ShieldCheck size={18} />
+                  <h2>Credit Assessment</h2>
+                </div>
+
+                <div className="quick-summary-list">
+                  <div className="quick-summary-item">
+                    <span>Risk Level</span>
+                    <strong style={{
+                      color: report.credit_assessment.risk_level === "LOW" ? "#16a34a"
+                        : report.credit_assessment.risk_level === "HIGH" ? "#dc2626" : "#d97706"
+                    }}>
+                      {report.credit_assessment.risk_level}
+                    </strong>
+                  </div>
+
+                  <div className="quick-summary-item">
+                    <span>Co-applicant Needed</span>
+                    <strong>{report.credit_assessment.co_applicant_needed ? "Yes" : "No"}</strong>
+                  </div>
+
+                  <div className="quick-summary-item">
+                    <span>Financing Recommendation</span>
+                    <strong style={{
+                      color: report.credit_assessment.financing_recommendation === "Yes" ? "#16a34a"
+                        : report.credit_assessment.financing_recommendation === "Review needed" ? "#dc2626" : "#d97706"
+                    }}>
+                      {report.credit_assessment.financing_recommendation}
+                    </strong>
+                  </div>
+
+                  {report.credit_assessment.reasoning && (
+                    <div className="quick-summary-item">
+                      <span>Reasoning</span>
+                      <strong>{report.credit_assessment.reasoning}</strong>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             <section className="report-side-card confidence-card">
               <div className="card-title-left">
                 <ShieldCheck size={18} />
