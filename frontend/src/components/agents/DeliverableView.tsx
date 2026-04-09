@@ -52,7 +52,7 @@ export default function DeliverableView() {
         </Link>
         <a
           href={api.deliverables.downloadUrl(active.id)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 rounded-lg text-sm hover:bg-purple-700 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-[#3535F3] rounded-lg text-sm hover:bg-[#2828D0] transition"
         >
           <Download className="w-4 h-4" /> Download Markdown
         </a>

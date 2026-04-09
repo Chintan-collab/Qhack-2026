@@ -24,16 +24,16 @@ export interface Conversation {
 }
 
 export interface ChatRequest {
-  conversationId?: string;
-  projectId?: string;
+  conversation_id?: string;
+  project_id?: string;
   message: string;
-  agentId?: string;
+  agent_id?: string;
 }
 
 export interface ChatResponse {
-  conversationId: string;
+  conversation_id: string;
   message: string;
-  agentActions: AgentAction[];
+  agent_actions: AgentAction[];
   metadata: Record<string, unknown>;
 }
 

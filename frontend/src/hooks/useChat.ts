@@ -9,14 +9,42 @@ export function useChat(projectId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const initializedRef = useRef(false);
 
-  // On mount: if we have a projectId, look up existing conversation
+  // On mount: if we have a projectId, load project phase + existing conversation
   useEffect(() => {
     if (!projectId || initializedRef.current) return;
     initializedRef.current = true;
 
-    api.projects.getConversation(projectId).then((convId) => {
+    // Clear previous chat state but keep phase until loaded
+    store.clearMessages();
+    store.setActiveConversation(null);
+
+    // Load project phase immediately
+    api.projects.get(projectId).then((project) => {
+      store.setCurrentPhase(project.status ?? "data_gathering");
+    }).catch(() => {
+      store.setCurrentPhase("data_gathering");
+    });
+
+    // Resume existing conversation and load messages
+    api.projects.getConversation(projectId).then(async (convId) => {
       if (convId) {
         store.setActiveConversation(convId);
+        // Load existing messages from DB
+        try {
+          const conv = await api.conversations.get(convId);
+          const messages: Message[] = (conv as any).messages?.map((m: any) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            agentName: m.agent_name,
+            timestamp: m.created_at || new Date().toISOString(),
+          })) || [];
+          for (const msg of messages) {
+            store.addMessage(msg);
+          }
+        } catch {
+          // No messages yet — fresh conversation
+        }
       }
     });
   }, [projectId, store]);
@@ -32,14 +60,14 @@ export function useChat(projectId?: string) {
       store.addMessage(userMessage);
 
       const response = await api.chat.send({
-        conversationId: store.activeConversationId ?? undefined,
-        projectId: projectId ?? undefined,
+        conversation_id: store.activeConversationId ?? undefined,
+        project_id: projectId ?? undefined,
         message: content,
       });
 
       // Store the conversation ID for subsequent messages
       if (!store.activeConversationId) {
-        store.setActiveConversation(response.conversationId);
+        store.setActiveConversation(response.conversation_id);
       }
 
       // Track phase changes

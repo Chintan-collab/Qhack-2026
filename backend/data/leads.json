@@ -14,7 +14,8 @@
     "monthly_energy_bill_eur": 180,
     "existing_assets": "None",
     "financial_profile": "Mid-income, open to financing",
-    "notes": "Concerned about rising gas prices"
+    "notes": "Concerned about rising gas prices",
+    "date_of_birth": "1979-05-12"
   },
   {
     "id": 2,
@@ -31,31 +32,15 @@
     "monthly_energy_bill_eur": 120,
     "existing_assets": "None",
     "financial_profile": "High income, prefers cash",
-    "notes": "Interested in sustainability"
+    "notes": "Interested in sustainability and reducing carbon footprint",
+    "date_of_birth": "1987-09-03"
   },
   {
     "id": 3,
-    "name": "Thomas Müller",
-    "postal_code": "97070",
-    "city": "Würzburg",
-    "product_interest": "Solar + Battery",
-    "household_size": 3,
-    "house_type": "Detached",
-    "build_year": 2005,
-    "roof_orientation": "South",
-    "electricity_kwh_year": 5200,
-    "heating_type": "Heat pump",
-    "monthly_energy_bill_eur": 210,
-    "existing_assets": "5 kWp solar",
-    "financial_profile": "Open to financing",
-    "notes": "Planning EV purchase"
-  },
-  {
-    "id": 4,
     "name": "Sabine Keller",
     "postal_code": "74523",
     "city": "Schwäbisch Hall",
-    "product_interest": "Heat pump",
+    "product_interest": "Heat pump + Solar",
     "household_size": 5,
     "house_type": "Detached",
     "build_year": 1978,
@@ -64,15 +49,16 @@
     "heating_type": "Oil",
     "monthly_energy_bill_eur": 260,
     "existing_assets": "None",
-    "financial_profile": "Limited upfront budget",
-    "notes": "Large roof area"
+    "financial_profile": "Limited upfront budget, needs financing",
+    "notes": "Large roof area, wants to replace oil heating before regulations hit",
+    "date_of_birth": "1972-02-14"
   },
   {
-    "id": 5,
+    "id": 4,
     "name": "Daniel Braun",
     "postal_code": "74072",
     "city": "Heilbronn",
-    "product_interest": "Wallbox",
+    "product_interest": "Solar + Battery + Wallbox",
     "household_size": 2,
     "house_type": "Detached",
     "build_year": 2012,
@@ -80,80 +66,13 @@
     "electricity_kwh_year": 3500,
     "heating_type": "Heat pump",
     "monthly_energy_bill_eur": 140,
-    "existing_assets": "Solar 8 kWp",
-    "financial_profile": "High income",
-    "notes": "Owns Tesla"
-  },
-  {
-    "id": 6,
-    "name": "Laura Fischer",
-    "postal_code": "76133",
-    "city": "Karlsruhe",
-    "product_interest": "Solar",
-    "household_size": 3,
-    "house_type": "Townhouse",
-    "build_year": 1995,
-    "roof_orientation": "East-West",
-    "electricity_kwh_year": 4100,
-    "heating_type": "Gas",
-    "monthly_energy_bill_eur": 170,
     "existing_assets": "None",
-    "financial_profile": "Open to financing",
-    "notes": "Interested in energy independence"
+    "financial_profile": "High income, prefers full package",
+    "notes": "Just bought an EV, wants full energy independence",
+    "date_of_birth": "1990-07-08"
   },
   {
-    "id": 7,
-    "name": "Stefan Wagner",
-    "postal_code": "73430",
-    "city": "Aalen",
-    "product_interest": "Heat pump + Solar",
-    "household_size": 4,
-    "house_type": "Detached",
-    "build_year": 1982,
-    "roof_orientation": "South",
-    "electricity_kwh_year": 4800,
-    "heating_type": "Gas",
-    "monthly_energy_bill_eur": 190,
-    "existing_assets": "None",
-    "financial_profile": "Mid income",
-    "notes": "House renovation planned"
-  },
-  {
-    "id": 8,
-    "name": "Julia Becker",
-    "postal_code": "97980",
-    "city": "Bad Mergentheim",
-    "product_interest": "Solar",
-    "household_size": 2,
-    "house_type": "Detached",
-    "build_year": 2001,
-    "roof_orientation": "South",
-    "electricity_kwh_year": 3000,
-    "heating_type": "Gas",
-    "monthly_energy_bill_eur": 110,
-    "existing_assets": "None",
-    "financial_profile": "Cash available",
-    "notes": "Wants long-term savings"
-  },
-  {
-    "id": 9,
-    "name": "Michael Hoffmann",
-    "postal_code": "68159",
-    "city": "Mannheim",
-    "product_interest": "Solar + Battery",
-    "household_size": 3,
-    "house_type": "Apartment building",
-    "build_year": 2010,
-    "roof_orientation": "Flat roof",
-    "electricity_kwh_year": 6000,
-    "heating_type": "District heating",
-    "monthly_energy_bill_eur": 230,
-    "existing_assets": "None",
-    "financial_profile": "Investor profile",
-    "notes": "Interested in ROI"
-  },
-  {
-    "id": 10,
+    "id": 5,
     "name": "Petra Lange",
     "postal_code": "70563",
     "city": "Stuttgart",
@@ -165,33 +84,9 @@
     "electricity_kwh_year": 5200,
     "heating_type": "Oil",
     "monthly_energy_bill_eur": 250,
-    "existing_assets": "None",
+    "existing_assets": "Solar 5 kWp",
     "financial_profile": "Financing required",
-    "notes": "Concerned about oil price volatility"
-  },
-  {
-    "id": 11,
-    "postal_code": "74238",
-    "product_interest": "Heat pump"
-  },
-  {
-    "id": 12,
-    "postal_code": "69120",
-    "product_interest": "Solar"
-  },
-  {
-    "id": 13,
-    "postal_code": "97980",
-    "product_interest": "Wallbox"
-  },
-  {
-    "id": 14,
-    "postal_code": "97070",
-    "product_interest": "Solar + Battery"
-  },
-  {
-    "id": 15,
-    "postal_code": "74072",
-    "product_interest": "Heat pump"
+    "notes": "Already has solar, concerned about oil price volatility and GEG deadline",
+    "date_of_birth": "1950-11-02"
   }
 ]

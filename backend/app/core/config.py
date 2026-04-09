@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Multi-Agent Chat"
+    PROJECT_NAME: str = "Cleo"
     VERSION: str = "0.1.0"
     DEBUG: bool = False
 

@@ -1,10 +1,12 @@
 import clsx from "clsx";
 
 const AGENT_STYLES: Record<string, { color: string; label: string }> = {
-  data_gathering: { color: "bg-blue-600", label: "Data Gathering" },
-  research: { color: "bg-green-600", label: "Research" },
-  strategy: { color: "bg-orange-500", label: "Strategy" },
-  pitch_deck: { color: "bg-purple-600", label: "Pitch Deck" },
+  data_gathering: { color: "bg-[#3535F3]", label: "Data Gathering" },
+  research: { color: "bg-[#4747F5]", label: "Research" },
+  analysis: { color: "bg-[#5757F7]", label: "Analysis" },
+  financial: { color: "bg-[#6262FB]", label: "Financial" },
+  strategy: { color: "bg-[#6565FF]", label: "Strategy" },
+  pitch_deck: { color: "bg-[#3535F3]", label: "Pitch Deck" },
 };
 
 interface Props {

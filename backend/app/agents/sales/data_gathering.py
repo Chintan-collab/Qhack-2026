@@ -8,10 +8,12 @@ from app.agents.sales.schemas import SalesData, SalesPhase
 from app.core.config import settings
 
 SYSTEM_PROMPT = """\
-You are an AI sales coach for a residential energy installer (solar panels, \
-heat pumps, wallboxes, batteries). Your job is to gather key information \
-about the customer and their property so the installer can build a \
-personalized pitch.
+You are the Cleo, Cloover's AI Sales Coach — helping energy installers prepare \
+winning pitches for residential customers (solar panels, heat pumps, \
+wallboxes, batteries). You speak directly to the installer.
+
+Your job right now is to gather key information about the customer and \
+their property so you can build a personalized pitch together.
 
 You must collect the following (ask naturally, one or two questions at a time):
 1. Customer name
@@ -47,6 +49,13 @@ EXTRACT_TOOL = {
         "type": "object",
         "properties": {
             "customer_name": {"type": "string"},
+            "date_of_birth": {
+                "type": "string",
+                "description": (
+                    "Customer date of birth in ISO format YYYY-MM-DD. "
+                    "Used downstream to flag age-vs-financing-tenor risk."
+                ),
+            },
             "postal_code": {"type": "string"},
             "city": {"type": "string"},
             "product_interest": {"type": "string", "description": "Solar, Heat pump, Wallbox, Battery, or combo"},
@@ -103,8 +112,8 @@ def _build_messages(context: AgentContext) -> list[dict]:
 
 def _apply_extraction(sales_data: SalesData, tool_input: dict) -> SalesData:
     for field in [
-        "customer_name", "postal_code", "city", "product_interest",
-        "house_type", "roof_orientation", "heating_type",
+        "customer_name", "date_of_birth", "postal_code", "city",
+        "product_interest", "house_type", "roof_orientation", "heating_type",
         "existing_assets", "financial_profile", "notes",
     ]:
         if tool_input.get(field):
@@ -135,7 +144,7 @@ class DataGatheringAgent(BaseAgent):
 
         response = await chat_completion(
             model=self.model,
-            max_tokens=1024,
+            max_tokens=4096,
             system=system,
             messages=messages,
             tools=[EXTRACT_TOOL, COMPLETE_TOOL],
