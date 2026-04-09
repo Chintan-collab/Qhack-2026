@@ -41,35 +41,36 @@ get one round of feedback, then move on."""
 
 STORE_STRATEGY_TOOL = {
     "name": "store_strategy",
-    "description": "Store an approved strategy element",
+    "description": "Store the COMPLETE sales strategy in ONE call. Include ALL fields at once — value proposition, savings, messages, financing, and objections. Never call this multiple times.",
     "input_schema": {
         "type": "object",
         "properties": {
-            "value_proposition": {"type": "string"},
-            "savings_estimate": {"type": "string"},
-            "payback_period": {"type": "string"},
+            "value_proposition": {"type": "string", "description": "Full value proposition"},
+            "savings_estimate": {"type": "string", "description": "Annual savings estimate"},
+            "payback_period": {"type": "string", "description": "Payback period"},
             "key_messages": {
                 "type": "array",
                 "items": {"type": "string"},
+                "description": "3-5 talking points for the meeting",
             },
             "financing_options": {
                 "type": "array",
                 "items": {"type": "string"},
+                "description": "Recommended financing paths",
+            },
+            "objections": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "objection": {"type": "string"},
+                        "response": {"type": "string"},
+                    },
+                },
+                "description": "2-3 likely objections with responses",
             },
         },
-    },
-}
-
-STORE_OBJECTION_TOOL = {
-    "name": "store_objection",
-    "description": "Store an approved objection/response pair",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "objection": {"type": "string"},
-            "response": {"type": "string"},
-        },
-        "required": ["objection", "response"],
+        "required": ["value_proposition", "savings_estimate", "key_messages"],
     },
 }
 
@@ -182,7 +183,6 @@ class StrategyAgent(BaseAgent):
             messages=messages,
             tools=[
                 STORE_STRATEGY_TOOL,
-                STORE_OBJECTION_TOOL,
                 COMPLETE_TOOL,
             ],
         )
@@ -240,14 +240,16 @@ class StrategyAgent(BaseAgent):
                 sales_data.financing_options = (
                     tool_input["financing_options"]
                 )
-
-        elif tool_name == "store_objection":
-            sales_data.objections.append(
-                ObjectionResponse(
-                    objection=tool_input["objection"],
-                    response=tool_input["response"],
-                )
-            )
+            # Objections included in the same tool call
+            if tool_input.get("objections"):
+                for obj in tool_input["objections"]:
+                    if isinstance(obj, dict) and obj.get("objection"):
+                        sales_data.objections.append(
+                            ObjectionResponse(
+                                objection=obj["objection"],
+                                response=obj.get("response", ""),
+                            )
+                        )
 
         elif tool_name == "mark_strategy_complete":
             sales_data.phase = SalesPhase.DELIVERABLE
