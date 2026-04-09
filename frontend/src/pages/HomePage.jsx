@@ -37,9 +37,16 @@ export default function HomePage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const [loginError, setLoginError] = useState("");
+
   const handleLogin = (event) => {
     event.preventDefault();
-    navigate("/form");
+    if (formData.email === "cleo@cloover.com" && formData.password === "cleoai") {
+      setLoginError("");
+      navigate("/form");
+    } else {
+      setLoginError("Invalid email or password");
+    }
   };
 
   return (
@@ -185,6 +192,12 @@ export default function HomePage() {
                 <ArrowRight size={18} />
               </motion.button>
             </form>
+
+            {loginError && (
+              <p style={{ margin: "12px 0 0", textAlign: "center", color: "#ef4444", fontSize: "0.88rem", fontWeight: 500 }}>
+                {loginError}
+              </p>
+            )}
 
             <div className="login-footer-note">
               Secure access for installer and sales workflows
