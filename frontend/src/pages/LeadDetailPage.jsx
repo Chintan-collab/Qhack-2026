@@ -227,6 +227,21 @@ export default function LeadPage() {
     return localStorage.getItem(`lead_project_${id}`) || null;
   });
 
+  // Validate cached projectId — if the backend no longer knows it (DB was
+  // recreated, project deleted, etc.) clear the stale reference so we can
+  // create a fresh one on next action.
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/projects/${projectId}`)
+      .then((r) => {
+        if (r.status === 404) {
+          localStorage.removeItem(`lead_project_${id}`);
+          setProjectId(null);
+        }
+      })
+      .catch(() => {});
+  }, [projectId, id]);
+
   const lead = useMemo(() => {
     return leads.find((item) => item.id === Number(id));
   }, [id]);
