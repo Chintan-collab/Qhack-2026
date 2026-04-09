@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["*"]
 
     # Database (SQLite for local dev, override with PostgreSQL in production)
     DATABASE_URL: str = "sqlite+aiosqlite:///./agent_chat.db"
