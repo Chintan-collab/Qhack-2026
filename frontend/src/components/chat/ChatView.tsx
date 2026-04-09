@@ -11,9 +11,11 @@ import AgentBadge from "../agents/AgentBadge";
 import PhaseIndicator from "../agents/PhaseIndicator";
 
 export default function ChatView() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { messages, isStreaming, activeAgent, currentPhase, sendMessage } = useChat(projectId);
+  const [dynamicProjectId, setDynamicProjectId] = useState<string | null>(null);
+  const effectiveProjectId = urlProjectId || dynamicProjectId;
+  const { messages, isStreaming, activeAgent, currentPhase, sendMessage } = useChat(urlProjectId);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [phaseFlash, setPhaseFlash] = useState(false);
@@ -44,17 +46,24 @@ export default function ChatView() {
         const t2 = setTimeout(() => setPhaseToast(null), 3000);
       }
 
-      // Auto-trigger report when reaching deliverable/complete
-      if ((currentPhase === "deliverable" || currentPhase === "complete") && projectId && !isGeneratingReport) {
-        setPhaseToast("Pipeline complete — generating your report...");
-        handleGenerateReport();
-      }
 
       return () => clearTimeout(t1);
     }
   }, [currentPhase]);
 
-  const canGenerateReport = projectId && (
+  // Track project_id from auto-created projects (general chat)
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.metadata?.project_id && !effectiveProjectId) {
+      setDynamicProjectId(lastMsg.metadata.project_id as string);
+    }
+    if (lastMsg?.metadata?.project_created && lastMsg?.metadata?.project_id) {
+      setDynamicProjectId(lastMsg.metadata.project_id as string);
+    }
+  }, [messages, effectiveProjectId]);
+
+  const canGenerateReport = effectiveProjectId && (
+    currentPhase === "strategy" ||
     currentPhase === "deliverable" ||
     currentPhase === "complete"
   );
@@ -71,10 +80,10 @@ export default function ChatView() {
   const displayPhase = currentPhase ? (phaseStatusMap[currentPhase] ?? "gathering") : "gathering";
 
   const handleGenerateReport = useCallback(async () => {
-    if (!projectId) return;
+    if (!effectiveProjectId) return;
     setIsGeneratingReport(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/report/generate/${projectId}`, { method: "POST" });
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/v1/report/generate/${effectiveProjectId}`, { method: "POST" });
       const data = await res.json();
       localStorage.setItem("reportData", JSON.stringify(data));
       navigate("/report");
@@ -83,7 +92,7 @@ export default function ChatView() {
     } finally {
       setIsGeneratingReport(false);
     }
-  }, [projectId, navigate]);
+  }, [effectiveProjectId, navigate]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative" style={{ background: "#f9fafb" }}>
@@ -179,11 +188,11 @@ export default function ChatView() {
 
       {/* Content */}
       {isVoiceMode ? (
-        <VoiceMode projectId={projectId} />
+        <VoiceMode projectId={effectiveProjectId} />
       ) : (
         <>
           <MessageList messages={messages} isStreaming={isStreaming} />
-          <ChatInput onSend={sendMessage} disabled={isStreaming} projectId={projectId} />
+          <ChatInput onSend={sendMessage} disabled={isStreaming} projectId={effectiveProjectId} />
         </>
       )}
     </div>
